@@ -7,15 +7,24 @@ const { ThumbnailRenderer } = require('./thumbnailRenderer');
 async function main() {
     // 인자 파싱
     const args = process.argv.slice(2);
-    let dslPath = 'thumbnail.json', outPath = 'thumbnail.png', title = null, subtitle = null;
+    let dslPath = 'thumbnail.json', outPath = 'thumbnail.png', title = null, subtitle = null, bgImg = null;
     for (let i = 0; i < args.length; i++) {
         if (args[i] === '--title' && args[i + 1]) { title = args[i + 1]; i++; continue; }
         if (args[i] === '--subtitle' && args[i + 1]) { subtitle = args[i + 1]; i++; continue; }
+        if (args[i] === '--bgImg' && args[i + 1]) { bgImg = args[i + 1]; i++; continue; }
         if (!dslPath || dslPath === 'thumbnail.json') { dslPath = args[i]; continue; }
         if (!outPath || outPath === 'thumbnail.png') { outPath = args[i]; continue; }
     }
     if (!fs.existsSync(dslPath)) throw new Error(`DSL 파일 없음: ${dslPath}`);
     const dsl = JSON.parse(fs.readFileSync(dslPath, 'utf-8'));
+    // 배경이미지의 base64 인코딩   
+    if (bgImg) {
+        const base64 = fs.readFileSync(bgImg, 'base64');
+        bgImg = `data:image/png;base64,${base64}`;
+        dsl.Thumbnail.Background.type = 'image';
+        dsl.Thumbnail.Background.imagePath = bgImg;
+    }
+
     // 제목/부제목 덮어쓰기
     if (title || subtitle) {
         if (Array.isArray(dsl.Thumbnail.Texts)) {
