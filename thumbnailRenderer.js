@@ -32,28 +32,51 @@
 `;
   }
 
-  function buildOutlineCss(color) {
+  function buildOutlineCss(color, thickness) {
     const offsets = [[-1, 0], [0, 1], [1, 0], [0, -1]];
     return offsets.map(([dx, dy]) => `${dx}px ${dy}px 0 ${color}`).join(', ');
   }
 
   function buildTextStyle({ font, fontSize, type, color, outline, position }) {
     const weight = type === 'title' ? 'bold' : 'normal';
-    const verticalPos = { top: '10px', middle: '50%', bottom: 'auto' }[position.vertical];
-    const bottomPos = position.vertical === 'bottom' ? '10px' : 'auto';
-    const transform = position.vertical === 'middle' ? 'translateY(-50%)' : '';
+    const outlineOffset = outline ? (outline.thickness || 2) / 2 : 0;
+    // 수평 정렬
+    let textAlign = 'left';
+    let left = '20px', right = 'auto', width = 'calc(100% - 40px)';
+    if (position && position.horizontal === 'center') {
+      textAlign = 'center';
+      left = '50%';
+      right = 'auto';
+      width = '100%';
+    } else if (position && position.horizontal === 'right') {
+      textAlign = 'right';
+      left = 'auto';
+      right = '20px';
+      width = 'calc(100% - 40px)';
+    }
+    const verticalPos = {
+      top: `${20 + outlineOffset}px`,
+      middle: '50%',
+      bottom: 'auto'
+    }[position.vertical];
+    const bottomPos = position.vertical === 'bottom' ? `${20 + outlineOffset}px` : 'auto';
+    const transform = position.vertical === 'middle'
+      ? (position && position.horizontal === 'center' ? 'translate(-50%,-50%)' : 'translateY(-50%)')
+      : (position && position.horizontal === 'center' ? 'translateX(-50%)' : '');
     return `
       position: absolute;
-      left: 10px;
+      left: ${left};
+      right: ${right};
       top: ${verticalPos};
       bottom: ${bottomPos};
       transform: ${transform};
-      width: calc(100% - 20px);
+      width: ${width};
       font-family: '${font.name}';
       font-size: ${fontSize}px;
       font-weight: ${weight};
       color: ${color};
-      ${outline ? `text-shadow: ${buildOutlineCss(outline.color)};` : ''}
+      text-align: ${textAlign};
+      ${outline ? `text-shadow: ${buildOutlineCss(outline.color, outline.thickness)};` : ''}
       line-height: 1.1;
       white-space: pre-wrap;
     `;
@@ -96,11 +119,46 @@
       texts.forEach(txt => {
         if (!txt.enabled) return;
         const lines = splitLines(txt.content);
-        const style = buildTextStyle(txt);
-        html += `
-<div style="${style}">
-  ${lines.map(line => `<div>${line}</div>`).join('')}
-</div>`;
+        const size = txt.fontSize;
+        const weight = txt.type === 'title' ? 'bold' : 'normal';
+        const outlineOffset = txt.outline ? (txt.outline.thickness || 2) / 2 : 0;
+        const w = 480, h = 270;
+        let y = 20 + outlineOffset;
+        if (txt.position.vertical === 'bottom') {
+          y = h - (lines.length * size * 1.1) - 20 - outlineOffset;
+        } else if (txt.position.vertical === 'middle') {
+          y = h / 2 - (lines.length * size * 1.1) / 2;
+        }
+        lines.forEach(line => {
+          let x;
+          if (txt.position && txt.position.horizontal === 'center') {
+            x = w / 2;
+          } else if (txt.position && txt.position.horizontal === 'right') {
+            x = w - 20;
+          } else {
+            x = 20;
+          }
+          let textShadow = '';
+          if (txt.outline) {
+            const offsets = [[-1, 0], [0, 1], [1, 0], [0, -1]];
+            textShadow = offsets.map(([dx, dy]) => `${dx}px ${dy}px 0 ${txt.outline.color}`).join(', ');
+          }
+          html += `<div style="
+            position: absolute;
+            left: ${x}px;
+            top: ${y}px;
+            font-family: '${txt.font.name}';
+            font-size: ${size}px;
+            font-weight: ${weight};
+            color: ${txt.color};
+            ${txt.position && txt.position.horizontal === 'center' ? 'text-align: center; width: 100%;' : ''}
+            ${txt.position && txt.position.horizontal === 'right' ? 'text-align: right; width: 100%;' : ''}
+            ${textShadow ? `text-shadow: ${textShadow};` : ''}
+            line-height: 1.1;
+            white-space: pre;
+          ">${line}</div>`;
+          y += size * 1.1;
+        });
       });
       return html;
     }
@@ -110,7 +168,7 @@
       const [w, h] = this.getResolution(Resolution.value);
       const fontCss = this.buildFontCss(Texts);
       const bgStyle = this.buildBackgroundStyle(Background);
-      const textHtml = this.buildTextLayers(Texts);
+      const textHtml = this.buildTextLayers(Texts.map(t => ({ ...t, _w: w, _h: h })));
 
       return `<!DOCTYPE html>
 <html>
@@ -162,19 +220,34 @@ ${fontCss}
         const lines = splitLines(txt.content);
         const size = txt.fontSize;
         const weight = txt.type === 'title' ? 'bold' : 'normal';
+        const outlineOffset = txt.outline ? (txt.outline.thickness || 2) / 2 : 0;
         ctx.font = `${weight} ${size}px ${txt.font.name}`;
         ctx.textBaseline = 'top';
+        // 수평 정렬
+        let x;
         ctx.textAlign = 'left';
-        let x = 10, y = 10;
+        if (txt.position && txt.position.horizontal === 'center') {
+          ctx.textAlign = 'center';
+        } else if (txt.position && txt.position.horizontal === 'right') {
+          ctx.textAlign = 'right';
+        }
+        let y = 20 + outlineOffset;
         if (txt.position.vertical === 'bottom') {
-          y = h - (lines.length * size * 1.1) - 10;
+          y = h - (lines.length * size * 1.1) - 20 - outlineOffset;
         } else if (txt.position.vertical === 'middle') {
           y = h / 2 - (lines.length * size * 1.1) / 2;
         }
         lines.forEach(line => {
+          if (txt.position && txt.position.horizontal === 'center') {
+            x = w / 2;
+          } else if (txt.position && txt.position.horizontal === 'right') {
+            x = w - 20;
+          } else {
+            x = 20;
+          }
           if (txt.outline) {
             ctx.save();
-            ctx.lineWidth = txt.outline.thickness || 2;
+            ctx.lineWidth = typeof txt.outline.thickness === 'number' ? txt.outline.thickness : 2;
             ctx.strokeStyle = txt.outline.color || '#000';
             ctx.strokeText(line, x, y);
             ctx.restore();

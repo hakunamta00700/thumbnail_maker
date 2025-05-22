@@ -11,33 +11,59 @@
     "Texts": [
       {
         "type": "title",
-        "content": "10초만에\\n썸네일 만드는 법",
+        "content": "10초만에\n썸네일 만드는 법1",
         "position": {
           "vertical": "top",
           "horizontal": "left"
         },
         "font": {
-          "name": "SpoqaHanSans",
-          "type": "system"
+          "name": "SBAggroB",
+          "faces": [
+            {
+              "name": "SpoqaHanSans",
+              "url": "fonts/SpoqaHanSans-Regular.woff2",
+              "weight": "normal",
+              "style": "normal"
+            },
+            {
+              "name": "SBAggroB",
+              "url": "https://fastly.jsdelivr.net/gh/projectnoonnu/noonfonts_2108@1.1/SBAggroB.woff",
+              "weight": "normal",
+              "style": "normal"
+            }
+          ]
         },
         "fontSize": 48,
-        "color": "#56cd82",
+        "color": "#4ade80",
         "outline": {
-          "thickness": 7,
-          "color": "#000000"
+          "thickness": 1,
+          "color": "#000"
         },
         "enabled": true
       },
       {
         "type": "subtitle",
-        "content": "쉽고 빠르게 썸네일을 만드는 법\\n= 퀵썸네일 쓰기",
+        "content": "쉽고 빠르게 썸네일을 만드는 법\n= 퀵썸네일 쓰기222",
         "position": {
           "vertical": "bottom",
           "horizontal": "left"
         },
         "font": {
-          "name": "SpoqaHanSans",
-          "type": "system"
+          "name": "SBAggroB",
+          "faces": [
+            {
+              "name": "SpoqaHanSans",
+              "url": "fonts/SpoqaHanSans-Regular.woff2",
+              "weight": "normal",
+              "style": "normal"
+            },
+            {
+              "name": "SBAggroB",
+              "url": "https://fastly.jsdelivr.net/gh/projectnoonnu/noonfonts_2108@1.1/SBAggroB.woff",
+              "weight": "normal",
+              "style": "normal"
+            }
+          ]
         },
         "fontSize": 24,
         "color": "#ffffff",
