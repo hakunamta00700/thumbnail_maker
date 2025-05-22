@@ -33,8 +33,22 @@
   }
 
   function buildOutlineCss(color, thickness) {
-    const offsets = [[-1, 0], [0, 1], [1, 0], [0, -1]];
-    return offsets.map(([dx, dy]) => `${dx}px ${dy}px 0 ${color}`).join(', ');
+    // thickness만큼 여러 방향으로 text-shadow 반복
+    thickness = thickness || 4;
+    let shadows = [];
+    for (let t = 1; t <= thickness; t++) {
+      shadows.push(
+        `${-t}px 0 0 ${color}`,
+        `${t}px 0 0 ${color}`,
+        `0 ${-t}px 0 ${color}`,
+        `0 ${t}px 0 ${color}`,
+        `${-t}px ${-t}px 0 ${color}`,
+        `${t}px ${-t}px 0 ${color}`,
+        `${-t}px ${t}px 0 ${color}`,
+        `${t}px ${t}px 0 ${color}`
+      );
+    }
+    return shadows.join(', ');
   }
 
   function buildTextStyle({ font, fontSize, type, color, outline, position }) {
@@ -145,6 +159,8 @@
       const M = 20;
       texts.forEach(txt => {
         if (!txt.enabled) return;
+        // outline thickness 기본값 보정
+        if (txt.outline && (!txt.outline.thickness || isNaN(txt.outline.thickness))) txt.outline.thickness = 4;
         const lines = splitLines(txt.content);
         const size = txt.fontSize;
         const weight = txt.type === 'title' ? 'bold' : 'normal';
@@ -153,8 +169,6 @@
           : txt.position.vertical === 'middle' ? (h - lines.length * lh) / 2
             : h - lines.length * lh - M;
         lines.forEach(line => {
-          // 실제 텍스트 너비 측정은 불가하므로, 대략적 중앙/우측 정렬 (캔버스와 완벽 일치 불가)
-          // width:fit-content + transform 사용
           let x = txt.position.horizontal === 'left' ? M
             : txt.position.horizontal === 'center' ? w / 2
               : w - M;
@@ -168,9 +182,7 @@
             style += ` left:${x}px; text-align:left;`;
           }
           if (txt.outline) {
-            const offsets = [[-1, 0], [0, 1], [1, 0], [0, -1]];
-            const textShadow = offsets.map(([dx, dy]) => `${dx}px ${dy}px 0 ${txt.outline.color}`).join(', ');
-            style += ` text-shadow:${textShadow};`;
+            style += ` text-shadow:${buildOutlineCss(txt.outline.color, txt.outline.thickness)};`;
           }
           html += `<div style="${style}">${line}</div>`;
           y += lh;
@@ -256,6 +268,8 @@ ${fontCss}
       const M = 20;
       Texts.forEach(txt => {
         if (!txt.enabled) return;
+        // outline thickness 기본값 보정
+        if (txt.outline && (!txt.outline.thickness || isNaN(txt.outline.thickness))) txt.outline.thickness = 4;
         const lines = splitLines(txt.content);
         const size = txt.fontSize;
         const weight = txt.type === 'title' ? 'bold' : 'normal';
