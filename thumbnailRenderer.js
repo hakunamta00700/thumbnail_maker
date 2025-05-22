@@ -17,6 +17,11 @@
     '1:1': [360, 360]
   };
 
+  // ==== 상수 정의 ====
+  const MARGIN = 20; // 텍스트/캔버스 여백(px)
+  const LINE_HEIGHT = 1.1; // 텍스트 줄간격 배수
+  const DEFAULT_OUTLINE_THICKNESS = 4; // 외곽선 기본 두께(px)
+
   function splitLines(text) {
     return text.split(/\\n|\r\n|\r|\n/);
   }
@@ -34,7 +39,7 @@
 
   function buildOutlineCss(color, thickness) {
     // thickness만큼 여러 방향으로 text-shadow 반복
-    thickness = thickness || 4;
+    thickness = thickness || DEFAULT_OUTLINE_THICKNESS;
     let shadows = [];
     for (let t = 1; t <= thickness; t++) {
       shadows.push(
@@ -50,52 +55,6 @@
     }
     return shadows.join(', ');
   }
-
-  function buildTextStyle({ font, fontSize, type, color, outline, position }) {
-    const weight = type === 'title' ? 'bold' : 'normal';
-    const outlineOffset = outline ? (outline.thickness || 2) / 2 : 0;
-    // 수평 정렬
-    let textAlign = 'left';
-    let left = '20px', right = 'auto', width = 'calc(100% - 40px)';
-    if (position && position.horizontal === 'center') {
-      textAlign = 'center';
-      left = '50%';
-      right = 'auto';
-      width = '100%';
-    } else if (position && position.horizontal === 'right') {
-      textAlign = 'right';
-      left = 'auto';
-      right = '20px';
-      width = 'calc(100% - 40px)';
-    }
-    const verticalPos = {
-      top: `${20 + outlineOffset}px`,
-      middle: '50%',
-      bottom: 'auto'
-    }[position.vertical];
-    const bottomPos = position.vertical === 'bottom' ? `${20 + outlineOffset}px` : 'auto';
-    const transform = position.vertical === 'middle'
-      ? (position && position.horizontal === 'center' ? 'translate(-50%,-50%)' : 'translateY(-50%)')
-      : (position && position.horizontal === 'center' ? 'translateX(-50%)' : '');
-    return `
-      position: absolute;
-      left: ${left};
-      right: ${right};
-      top: ${verticalPos};
-      bottom: ${bottomPos};
-      transform: ${transform};
-      width: ${width};
-      font-family: '${font.name}';
-      font-size: ${fontSize}px;
-      font-weight: ${weight};
-      color: ${color};
-      text-align: ${textAlign};
-      ${outline ? `text-shadow: ${buildOutlineCss(outline.color, outline.thickness)};` : ''}
-      line-height: 1.1;
-      white-space: pre-wrap;
-    `;
-  }
-
   // 환경별 이미지 로딩 (브라우저/Node.js 모두 지원)
   async function loadImageUniversal(url) {
     if (typeof window !== 'undefined' && window.Image) {
@@ -156,15 +115,15 @@
       // HTML 렌더링도 캔버스와 동일한 좌표계, cover 방식에 맞춰서
       let html = '';
       const [w, h] = [480, 270]; // 기본값, 실제 buildHtml에서 override됨
-      const M = 20;
+      const M = MARGIN;
       texts.forEach(txt => {
         if (!txt.enabled) return;
         // outline thickness 기본값 보정
-        if (txt.outline && (!txt.outline.thickness || isNaN(txt.outline.thickness))) txt.outline.thickness = 4;
+        if (txt.outline && (!txt.outline.thickness || isNaN(txt.outline.thickness))) txt.outline.thickness = DEFAULT_OUTLINE_THICKNESS;
         const lines = splitLines(txt.content);
         const size = txt.fontSize;
         const weight = txt.type === 'title' ? 'bold' : 'normal';
-        const lh = size * 1.1;
+        const lh = size * LINE_HEIGHT;
         let y = txt.position.vertical === 'top' ? M
           : txt.position.vertical === 'middle' ? (h - lines.length * lh) / 2
             : h - lines.length * lh - M;
@@ -173,7 +132,7 @@
             : txt.position.horizontal === 'center' ? w / 2
               : w - M;
           let align = txt.position.horizontal || 'left';
-          let style = `position:absolute; top:${y}px; font-family:'${txt.font.name}'; font-size:${size}px; font-weight:${weight}; color:${txt.color}; line-height:1.1; white-space:pre;`;
+          let style = `position:absolute; top:${y}px; font-family:'${txt.font.name}'; font-size:${size}px; font-weight:${weight}; color:${txt.color}; line-height:${LINE_HEIGHT}; white-space:pre;`;
           if (align === 'center') {
             style += ` left:${x}px; transform:translateX(-50%); text-align:center;`;
           } else if (align === 'right') {
@@ -265,18 +224,18 @@ ${fontCss}
         ctx.fillRect(0, 0, w, h);
       }
       // 텍스트
-      const M = 20;
+      const M = MARGIN;
       Texts.forEach(txt => {
         if (!txt.enabled) return;
         // outline thickness 기본값 보정
-        if (txt.outline && (!txt.outline.thickness || isNaN(txt.outline.thickness))) txt.outline.thickness = 4;
+        if (txt.outline && (!txt.outline.thickness || isNaN(txt.outline.thickness))) txt.outline.thickness = DEFAULT_OUTLINE_THICKNESS;
         const lines = splitLines(txt.content);
         const size = txt.fontSize;
         const weight = txt.type === 'title' ? 'bold' : 'normal';
         ctx.font = `${weight} ${size}px ${txt.font.name}`;
         ctx.textBaseline = 'top';
         if (txt.outline) { ctx.lineWidth = txt.outline.thickness; ctx.strokeStyle = txt.outline.color; }
-        const lh = size * 1.1;
+        const lh = size * LINE_HEIGHT;
         let y = txt.position.vertical === 'top' ? M
           : txt.position.vertical === 'middle' ? (h - lines.length * lh) / 2
             : h - lines.length * lh - M;
