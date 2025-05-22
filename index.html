@@ -85,6 +85,7 @@
     </div>
   </div>
 
+  <script src="thumbnailRenderer.js"></script>
   <script>
     function thumbnailApp() {
       return {
@@ -101,6 +102,8 @@
         subtitleColor: '#ffffff',
         subtitleVisible: true,
         dsl: '',
+        dslObj: null,
+        bgImageObj: null,
         init() {
           this.fontFaces = [
             { name:'SpoqaHanSans', url:'fonts/SpoqaHanSans-Regular.woff2', weight:'normal', style:'normal' }
@@ -132,30 +135,47 @@
           ).join('\n');
         },
         update() {
-          this.draw();
           this.dsl = this.generateDSL();
+          this.dslObj = JSON.parse(this.dsl);
+          if (this.bgImageUrl) {
+            // 이미지 비동기 로딩 후 draw
+            const img = new window.Image();
+            img.crossOrigin = 'anonymous';
+            img.src = this.bgImageUrl;
+            img.onload = () => {
+              this.bgImageObj = img;
+              this.draw();
+            };
+            img.onerror = () => {
+              this.bgImageObj = null;
+              this.draw();
+            };
+            // draw()는 onload에서 호출
+            return;
+          } else {
+            this.bgImageObj = null;
+            this.draw();
+          }
         },
         draw() {
           const cv = this.$refs.canvas;
           const ctx = cv.getContext('2d');
-          const sizeMap = { '16:9':[480,270], '9:16':[270,480], '4:3':[480,360], '1:1':[360,360] };
-          const [w,h] = sizeMap[this.resolution];
-          cv.width = w; cv.height = h;
-          ctx.fillStyle = this.bgColor;
-          ctx.fillRect(0,0,w,h);
-          if (this.bgImageUrl) { const img = new Image(); img.crossOrigin='anonymous'; img.src=this.bgImageUrl; img.onload = () => { this.update(); }; return; }
-          let x=20, y=20;
-          ctx.textBaseline='top'; ctx.textAlign='left';
-          ctx.font = `bold 48px ${this.fontFamily}`;
-          ctx.fillStyle = this.titleColor;
-          ctx.lineWidth = this.titleOutline ? 7 : 0;
-          ctx.strokeStyle = 'black';
-          this.titleText.split('\\n').forEach(line=>{ if (this.titleOutline) ctx.strokeText(line,x,y); ctx.fillText(line,x,y); y += 52; });
-          if (this.subtitleVisible) {
-            ctx.font = `24px ${this.fontFamily}`;
-            ctx.fillStyle = this.subtitleColor;
-            y += 10;
-            this.subtitleText.split('\\n').forEach(line=>{ ctx.fillText(line,x,y); y += 28; });
+          if (!this.dslObj) return;
+          // 배경이 image면 직접 그림, 아니면 drawThumbnailOnCanvas 사용
+          const bg = this.dslObj.Thumbnail.Background;
+          if (bg.type === 'image' && this.bgImageObj) {
+            // draw image background first
+            const sizeMap = { '16:9':[480,270], '9:16':[270,480], '4:3':[480,360], '1:1':[360,360] };
+            const [w,h] = sizeMap[this.resolution];
+            cv.width = w; cv.height = h;
+            ctx.clearRect(0,0,w,h);
+            ctx.drawImage(this.bgImageObj, 0, 0, w, h);
+            // 텍스트만 따로 그리기 위해 배경을 solid로 임시 변경
+            const dslForText = JSON.parse(JSON.stringify(this.dslObj));
+            dslForText.Thumbnail.Background = { type: 'solid', color: 'rgba(0,0,0,0)' };
+            window.thumbnailRenderer.drawThumbnailOnCanvas(ctx, dslForText);
+          } else {
+            window.thumbnailRenderer.drawThumbnailOnCanvas(ctx, this.dslObj);
           }
         },
         generateDSL() {
