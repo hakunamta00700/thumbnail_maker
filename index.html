@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="ko" x-data="thumbnailApp()" x-init="update()">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>퀵썸네일 Canvas + DSL</title>
+  <!-- Alpine.js -->
+  <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+  <!-- 폰트 로드 -->
+  <style>
+    @font-face {
+      font-family: 'SpoqaHanSans';
+      src: url('fonts/SpoqaHanSans-Regular.woff2') format('woff2');
+      font-weight: normal;
+      font-style: normal;
+    }
+    @font-face {
+      font-family: 'Ownglyph_ParkDaHyun';
+      src: url('https://fastly.jsdelivr.net/gh/projectnoonnu/2411-3@1.0/Ownglyph_ParkDaHyun.woff2') format('woff2');
+	  font-weight: normal;
+	  font-style: normal;
+    }
+    @font-face {
+      font-family: 'YagomTravel';
+      src: url('fonts/YagomTravel.woff2') format('woff2');
+      font-weight: normal;
+      font-style: normal;
+    }
+    /* 필요에 따라 다른 폰트도 추가 */
+
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    .layout { display: flex; gap: 20px; }
+    .controls, .dsl-panel { width: 300px; }
+    .controls label, .dsl-panel h3 { display: block; margin-top: 10px; }
+    canvas { border: 1px solid #ccc; }
+    textarea { width: 100%; height: 400px; font-family: monospace; }
+    select, input[type="color"], input[type="checkbox"], textarea { margin-top: 4px; }
+  </style>
+</head>
+<body>
+  <h2>퀵썸네일 Canvas 미리보기 + DSL</h2>
+  <div class="layout">
+    <!-- Controls -->
+    <div class="controls">
+      <h3>설정</h3>
+      <label>
+        해상도:
+        <select x-model="resolution" @input="update()">
+          <option value="16:9">16:9</option>
+          <option value="9:16">9:16</option>
+          <option value="4:3">4:3</option>
+          <option value="1:1">1:1</option>
+        </select>
+      </label>
+      <label>
+        배경 색상:
+        <input type="color" x-model="bgColor" @input="update()">
+      </label>
+      <label>
+        배경 이미지 URL:
+        <input type="text" x-model="bgImageUrl" @change="update()" placeholder="URL 입력">
+      </label>
+      <label>
+        폰트 선택:
+        <select x-model="fontFamily" @input="update()">
+          <template x-for="f in fonts" :key="f">
+            <option x-text="f" :value="f"></option>
+          </template>
+        </select>
+      </label>
+      <label>
+        제목 텍스트:
+        <textarea x-model="titleText" @input="update()"></textarea>
+      </label>
+      <label>
+        제목 색상:
+        <input type="color" x-model="titleColor" @input="update()">
+      </label>
+      <label>
+        제목 외곽선:
+        <input type="checkbox" x-model="titleOutline" @change="update()"> 적용
+      </label>
+      <label>
+        부제목 텍스트:
+        <textarea x-model="subtitleText" @input="update()"></textarea>
+      </label>
+      <label>
+        부제목 색상:
+        <input type="color" x-model="subtitleColor" @input="update()">
+      </label>
+      <label>
+        부제목 표시:
+        <input type="checkbox" x-model="subtitleVisible" @change="update()"> 보이기
+      </label>
+    </div>
+
+    <!-- Canvas Preview -->
+    <div>
+      <canvas x-ref="canvas"></canvas>
+    </div>
+
+    <!-- DSL Panel -->
+    <div class="dsl-panel">
+      <h3>DSL (JSON)</h3>
+      <textarea readonly x-text="dsl"></textarea>
+    </div>
+  </div>
+
+  <script>
+    function thumbnailApp() {
+      return {
+        resolution: '16:9',
+        bgColor: '#a3e635',
+        bgImageUrl: '',
+        fonts: ['SpoqaHanSans', 'Ownglyph_ParkDaHyun'],
+        fontFamily: 'SpoqaHanSans',
+        titleText: '10초만에\\n썸네일 만드는 법',
+        titleColor: '#4ade80',
+        titleOutline: true,
+        subtitleText: '쉽고 빠르게 썸네일을 만드는 법\\n= 퀵썸네일 쓰기',
+        subtitleColor: '#ffffff',
+        subtitleVisible: true,
+        dsl: '',
+
+        update() {
+          this.draw();
+          this.dsl = this.generateDSL();
+        },
+
+        draw() {
+          const cv = this.$refs.canvas;
+          const ctx = cv.getContext('2d');
+          const sizeMap = { '16:9':[480,270], '9:16':[270,480], '4:3':[480,360], '1:1':[360,360] };
+          const [w,h] = sizeMap[this.resolution];
+          cv.width = w; cv.height = h;
+
+          ctx.fillStyle = this.bgColor;
+          ctx.fillRect(0,0,w,h);
+          if (this.bgImageUrl) {
+            const img = new Image(); img.crossOrigin='anonymous'; img.src=this.bgImageUrl;
+            img.onload = () => { this.draw(); };
+            return;
+          }
+
+          let x=20, y=20;
+          ctx.textBaseline='top'; ctx.textAlign='left';
+
+          // Title
+          ctx.font = `bold 48px ${this.fontFamily}`;
+          ctx.fillStyle = this.titleColor;
+          ctx.lineWidth = this.titleOutline ? 7 : 0;
+          ctx.strokeStyle = 'black';
+          this.titleText.split('\\n').forEach(line=>{
+            if (this.titleOutline) ctx.strokeText(line,x,y);
+            ctx.fillText(line,x,y);
+            y += 52;
+          });
+
+          // Subtitle
+          if (this.subtitleVisible) {
+            ctx.font = `24px ${this.fontFamily}`;
+            ctx.fillStyle = this.subtitleColor;
+            y += 10;
+            this.subtitleText.split('\\n').forEach(line=>{
+              ctx.fillText(line,x,y);
+              y += 28;
+            });
+          }
+        },
+
+        generateDSL() {
+          const bg = this.bgImageUrl ? { type:'image', imagePath:this.bgImageUrl }
+            : { type:'solid', color:this.bgColor };
+          const texts = [{
+            type:'title', content:this.titleText, position:{vertical:'top',horizontal:'left'},
+            font:{name:this.fontFamily,type:'system'}, fontSize:48,
+            color:this.titleColor, outline:this.titleOutline?{thickness:7,color:'#000'}:null, enabled:true
+          }];
+          if (this.subtitleVisible) texts.push({
+            type:'subtitle', content:this.subtitleText, position:{vertical:'bottom',horizontal:'left'},
+            font:{name:this.fontFamily,type:'system'}, fontSize:24,
+            color:this.subtitleColor, outline:null, enabled:true
+          });
+          const obj = { Thumbnail:{ Resolution:{type:'preset',value:this.resolution}, Background:bg, Texts:texts }, TemplateMeta:{name:'',shareable:false} };
+          return JSON.stringify(obj,null,2);
+        }
+      }
+    }
+  </script>
+</body>
+</html>

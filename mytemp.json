@@ -1,0 +1,53 @@
+{
+  "Thumbnail": {
+    "Resolution": {
+      "type": "preset",
+      "value": "16:9"
+    },
+    "Background": {
+      "type": "solid",
+      "color": "#a3e635"
+    },
+    "Texts": [
+      {
+        "type": "title",
+        "content": "10초만에\\n썸네일 만드는 법",
+        "position": {
+          "vertical": "top",
+          "horizontal": "left"
+        },
+        "font": {
+          "name": "SpoqaHanSans",
+          "type": "system"
+        },
+        "fontSize": 48,
+        "color": "#56cd82",
+        "outline": {
+          "thickness": 7,
+          "color": "#000000"
+        },
+        "enabled": true
+      },
+      {
+        "type": "subtitle",
+        "content": "쉽고 빠르게 썸네일을 만드는 법\\n= 퀵썸네일 쓰기",
+        "position": {
+          "vertical": "bottom",
+          "horizontal": "left"
+        },
+        "font": {
+          "name": "SpoqaHanSans",
+          "type": "system"
+        },
+        "fontSize": 24,
+        "color": "#ffffff",
+        "outline": null,
+        "enabled": true
+      }
+    ]
+  },
+  "TemplateMeta": {
+    "name": "",
+    "shareable": false
+  }
+}
