@@ -161,7 +161,7 @@
           const cv = this.$refs.canvas;
           const ctx = cv.getContext('2d');
           if (!this.dslObj) return;
-          // 배경이 image면 직접 그림, 아니면 drawThumbnailOnCanvas 사용
+          // 배경이 image면 직접 그림, 아니면 drawOnCanvas 사용
           const bg = this.dslObj.Thumbnail.Background;
           if (bg.type === 'image' && this.bgImageObj) {
             // draw image background first
@@ -173,9 +173,9 @@
             // 텍스트만 따로 그리기 위해 배경을 solid로 임시 변경
             const dslForText = JSON.parse(JSON.stringify(this.dslObj));
             dslForText.Thumbnail.Background = { type: 'solid', color: 'rgba(0,0,0,0)' };
-            window.thumbnailRenderer.drawThumbnailOnCanvas(ctx, dslForText);
+            window.thumbnailRenderer.ThumbnailRenderer.drawOnCanvas(ctx, dslForText);
           } else {
-            window.thumbnailRenderer.drawThumbnailOnCanvas(ctx, this.dslObj);
+            window.thumbnailRenderer.ThumbnailRenderer.drawOnCanvas(ctx, this.dslObj);
           }
         },
         generateDSL() {
