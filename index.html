@@ -4,87 +4,126 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>퀵썸네일 Canvas + DSL</title>
+  <!-- Bootstrap 5 CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <!-- Alpine.js -->
   <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
   <style>
     body { font-family: Arial, sans-serif; padding: 20px; }
-    .layout { display: flex; gap: 20px; }
-    .controls, .dsl-panel { width: 300px; }
-    .controls label, .dsl-panel h3 { display: block; margin-top: 10px; }
-    canvas { border: 1px solid #ccc; }
+    .canvas-wrap { border: 1px solid #ccc; background: #f8fafc; border-radius: 8px; padding: 12px; }
     textarea, input[type="text"], select, input[type="color"] { width: 100%; margin-top: 4px; box-sizing: border-box; }
     textarea { font-family: monospace; }
-    button { margin-top: 8px; padding: 6px 12px; }
+    .form-label { margin-top: 10px; }
+    .dsl-panel textarea { min-height: 200px; }
+    .canvas-wrap { display: flex; justify-content: center; align-items: center; min-height: 300px; }
   </style>
   <style x-text="fontFaceStyles()"></style>
 </head>
-<body>
-  <h2>퀵썸네일 Canvas 미리보기 + DSL</h2>
-  <div class="layout">
-    <!-- Controls -->
-    <div class="controls">
-      <h3>설정</h3>
-      <label>해상도:
-        <select x-model="resolution" @change="update()">
-          <option value="16:9">16:9</option>
-          <option value="9:16">9:16</option>
-          <option value="4:3">4:3</option>
-          <option value="1:1">1:1</option>
-        </select>
-      </label>
-      <label>배경 색상:
-        <input type="color" x-model="bgColor" @input="update()">
-      </label>
-      <label>배경 이미지 URL:
-        <input type="text" x-model="bgImageUrl" @change="update()" placeholder="URL 입력">
-      </label>
+<body class="bg-light">
+  <div class="container py-4">
+    <h2 class="mb-4 fw-bold text-primary">퀵썸네일 Canvas 미리보기 + DSL</h2>
+    <div class="row g-4">
+      <!-- Canvas Preview -->
+      <div class="col-md-6">
+        <div class="canvas-wrap shadow-sm bg-white">
+          <canvas x-ref="canvas"></canvas>
+        </div>
+      </div>      
+      <!-- Controls -->
+      <div class="col-md-4">
+        <div class="card shadow-sm">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <h3 class="h5 mb-0">설정</h3>
+              <button class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#dslModal">DSL 보기</button>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">해상도</label>
+              <select class="form-select" x-model="resolution" @change="update()">
+                <option value="16:9">16:9</option>
+                <option value="9:16">9:16</option>
+                <option value="4:3">4:3</option>
+                <option value="1:1">1:1</option>
+              </select>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">배경 색상</label>
+              <input type="color" class="form-control form-control-color" x-model="bgColor" @input="update()">
+            </div>
+            <div class="mb-3">
+              <label class="form-label">배경 이미지 URL</label>
+              <input type="text" class="form-control" x-model="bgImageUrl" @change="update()" placeholder="URL 입력">
+            </div>
+            <h3 class="h6 mt-4">폰트 설정</h3>
+            <div class="mb-3">
+              <label class="form-label">Custom @font-face CSS</label>
+              <textarea class="form-control" x-model="newFontCss" rows="3" placeholder="@font-face { ... }"></textarea>
+              <button class="btn btn-outline-secondary btn-sm mt-2" @click="parseAndAddFontFace()">폰트 추가</button>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">적용 폰트</label>
+              <select class="form-select" x-model="fontFamily" @change="update()">
+                <template x-for="f in fontFaces" :key="f.name">
+                  <option x-text="f.name" :value="f.name"></option>
+                </template>
+              </select>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">제목 텍스트</label>
+              <textarea class="form-control" x-model="titleText" @input="update()"></textarea>
+            </div>
+            <div class="row g-2 mb-3">
+              <div class="col">
+                <label class="form-label">제목 색상</label>
+                <input type="color" class="form-control form-control-color" x-model="titleColor" @input="update()">
+              </div>
+              <div class="col d-flex align-items-end">
+                <div class="form-check ms-2">
+                  <input class="form-check-input" type="checkbox" x-model="titleOutline" @change="update()" id="titleOutlineCheck">
+                  <label class="form-check-label" for="titleOutlineCheck">외곽선</label>
+                </div>
+              </div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">부제목 텍스트</label>
+              <textarea class="form-control" x-model="subtitleText" @input="update()"></textarea>
+            </div>
+            <div class="row g-2 mb-3">
+              <div class="col">
+                <label class="form-label">부제목 색상</label>
+                <input type="color" class="form-control form-control-color" x-model="subtitleColor" @input="update()">
+              </div>
+              <div class="col d-flex align-items-end">
+                <div class="form-check ms-2">
+                  <input class="form-check-input" type="checkbox" x-model="subtitleVisible" @change="update()" id="subtitleVisibleCheck">
+                  <label class="form-check-label" for="subtitleVisibleCheck">부제목 표시</label>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
-      <h3>폰트 설정</h3>
-      <label>Custom @font-face CSS:
-        <textarea x-model="newFontCss" rows="4" placeholder="@font-face { ... }"></textarea>
-      </label>
-      <button @click="parseAndAddFontFace()">폰트 추가</button>
-
-      <label>적용 폰트:
-        <select x-model="fontFamily" @change="update()">
-          <template x-for="f in fontFaces" :key="f.name">
-            <option x-text="f.name" :value="f.name"></option>
-          </template>
-        </select>
-      </label>
-
-      <label>제목 텍스트:
-        <textarea x-model="titleText" @input="update()"></textarea>
-      </label>
-      <label>제목 색상:
-        <input type="color" x-model="titleColor" @input="update()">
-      </label>
-      <label>제목 외곽선:
-        <input type="checkbox" x-model="titleOutline" @change="update()"> 적용
-      </label>
-      <label>부제목 텍스트:
-        <textarea x-model="subtitleText" @input="update()"></textarea>
-      </label>
-      <label>부제목 색상:
-        <input type="color" x-model="subtitleColor" @input="update()">
-      </label>
-      <label>부제목 표시:
-        <input type="checkbox" x-model="subtitleVisible" @change="update()"> 보이기
-      </label>
-    </div>
-
-    <!-- Canvas Preview -->
-    <div>
-      <canvas x-ref="canvas"></canvas>
-    </div>
-
-    <!-- DSL Panel -->
-    <div class="dsl-panel">
-      <h3>DSL (JSON)</h3>
-      <textarea readonly x-text="dsl"></textarea>
     </div>
   </div>
 
+  <!-- DSL Modal -->
+  <div class="modal fade" id="dslModal" tabindex="-1" aria-labelledby="dslModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="dslModalLabel">DSL (JSON)</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <textarea class="form-control" readonly x-text="dsl" style="min-height:300px"></textarea>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bootstrap 5 JS (for modal, etc. if needed) -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
   <script src="thumbnailRenderer.js"></script>
   <script>
     function thumbnailApp() {
@@ -95,10 +134,10 @@
         fontFaces: [],
         newFontCss: '',
         fontFamily: '',
-        titleText: '10초만에\\n썸네일 만드는 법',
+        titleText: '10초만에\n썸네일 만드는 법',
         titleColor: '#4ade80',
         titleOutline: true,
-        subtitleText: '쉽고 빠르게 썸네일을 만드는 법\\n= 퀵썸네일 쓰기',
+        subtitleText: '쉽고 빠르게 썸네일을 만드는 법\n= 퀵썸네일 쓰기',
         subtitleColor: '#ffffff',
         subtitleVisible: true,
         dsl: '',
