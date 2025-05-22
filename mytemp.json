@@ -5,13 +5,13 @@
       "value": "16:9"
     },
     "Background": {
-      "type": "solid",
-      "color": "#a3e635"
+      "type": "image",
+      "imagePath": "https://file2.nocutnews.co.kr/newsroom/image/2020/11/10/20201110085849119181_0_608_733.jpg"
     },
     "Texts": [
       {
         "type": "title",
-        "content": "10초만에\n썸네일 만드는 법1",
+        "content": "10초만에\n썸네일 만드는 법",
         "position": {
           "vertical": "top",
           "horizontal": "left"
@@ -19,12 +19,6 @@
         "font": {
           "name": "SBAggroB",
           "faces": [
-            {
-              "name": "SpoqaHanSans",
-              "url": "fonts/SpoqaHanSans-Regular.woff2",
-              "weight": "normal",
-              "style": "normal"
-            },
             {
               "name": "SBAggroB",
               "url": "https://fastly.jsdelivr.net/gh/projectnoonnu/noonfonts_2108@1.1/SBAggroB.woff",
@@ -36,14 +30,14 @@
         "fontSize": 48,
         "color": "#4ade80",
         "outline": {
-          "thickness": 1,
+          "thickness": 7,
           "color": "#000"
         },
         "enabled": true
       },
       {
         "type": "subtitle",
-        "content": "쉽고 빠르게 썸네일을 만드는 법\n= 퀵썸네일 쓰기222",
+        "content": "쉽고 빠르게 썸네일을 만드는 법\n= 퀵썸네일 쓰기",
         "position": {
           "vertical": "bottom",
           "horizontal": "left"
@@ -51,12 +45,6 @@
         "font": {
           "name": "SBAggroB",
           "faces": [
-            {
-              "name": "SpoqaHanSans",
-              "url": "fonts/SpoqaHanSans-Regular.woff2",
-              "weight": "normal",
-              "style": "normal"
-            },
             {
               "name": "SBAggroB",
               "url": "https://fastly.jsdelivr.net/gh/projectnoonnu/noonfonts_2108@1.1/SBAggroB.woff",

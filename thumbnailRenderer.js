@@ -82,6 +82,30 @@
     `;
   }
 
+  // 환경별 이미지 로딩 (브라우저/Node.js 모두 지원)
+  async function loadImageUniversal(url) {
+    if (typeof window !== 'undefined' && window.Image) {
+      // 브라우저 환경: fetch + Blob + Image
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('이미지 다운로드 실패');
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      return new Promise((resolve, reject) => {
+        const img = new window.Image();
+        img.src = blobUrl;
+        img.onload = () => {
+          resolve(img);
+          // URL.revokeObjectURL(blobUrl); // 필요시 메모리 해제
+        };
+        img.onerror = reject;
+      });
+    } else {
+      // Node.js 환경: canvas의 loadImage
+      const { loadImage } = require('canvas');
+      return await loadImage(url);
+    }
+  }
+
   class ThumbnailRenderer {
     static getResolution(value) {
       return RESOLUTIONS[value] || RESOLUTIONS['16:9'];
@@ -115,49 +139,41 @@
     }
 
     static buildTextLayers(texts) {
+      // HTML 렌더링도 캔버스와 동일한 좌표계, cover 방식에 맞춰서
       let html = '';
+      const [w, h] = [480, 270]; // 기본값, 실제 buildHtml에서 override됨
+      const M = 20;
       texts.forEach(txt => {
         if (!txt.enabled) return;
         const lines = splitLines(txt.content);
         const size = txt.fontSize;
         const weight = txt.type === 'title' ? 'bold' : 'normal';
-        const outlineOffset = txt.outline ? (txt.outline.thickness || 2) / 2 : 0;
-        const w = 480, h = 270;
-        let y = 20 + outlineOffset;
-        if (txt.position.vertical === 'bottom') {
-          y = h - (lines.length * size * 1.1) - 20 - outlineOffset;
-        } else if (txt.position.vertical === 'middle') {
-          y = h / 2 - (lines.length * size * 1.1) / 2;
-        }
+        const lh = size * 1.1;
+        let y = txt.position.vertical === 'top' ? M
+          : txt.position.vertical === 'middle' ? (h - lines.length * lh) / 2
+            : h - lines.length * lh - M;
         lines.forEach(line => {
-          let x;
-          if (txt.position && txt.position.horizontal === 'center') {
-            x = w / 2;
-          } else if (txt.position && txt.position.horizontal === 'right') {
-            x = w - 20;
+          // 실제 텍스트 너비 측정은 불가하므로, 대략적 중앙/우측 정렬 (캔버스와 완벽 일치 불가)
+          // width:fit-content + transform 사용
+          let x = txt.position.horizontal === 'left' ? M
+            : txt.position.horizontal === 'center' ? w / 2
+              : w - M;
+          let align = txt.position.horizontal || 'left';
+          let style = `position:absolute; top:${y}px; font-family:'${txt.font.name}'; font-size:${size}px; font-weight:${weight}; color:${txt.color}; line-height:1.1; white-space:pre;`;
+          if (align === 'center') {
+            style += ` left:${x}px; transform:translateX(-50%); text-align:center;`;
+          } else if (align === 'right') {
+            style += ` left:${x}px; transform:translateX(-100%); text-align:right;`;
           } else {
-            x = 20;
+            style += ` left:${x}px; text-align:left;`;
           }
-          let textShadow = '';
           if (txt.outline) {
             const offsets = [[-1, 0], [0, 1], [1, 0], [0, -1]];
-            textShadow = offsets.map(([dx, dy]) => `${dx}px ${dy}px 0 ${txt.outline.color}`).join(', ');
+            const textShadow = offsets.map(([dx, dy]) => `${dx}px ${dy}px 0 ${txt.outline.color}`).join(', ');
+            style += ` text-shadow:${textShadow};`;
           }
-          html += `<div style="
-            position: absolute;
-            left: ${x}px;
-            top: ${y}px;
-            font-family: '${txt.font.name}';
-            font-size: ${size}px;
-            font-weight: ${weight};
-            color: ${txt.color};
-            ${txt.position && txt.position.horizontal === 'center' ? 'text-align: center; width: 100%;' : ''}
-            ${txt.position && txt.position.horizontal === 'right' ? 'text-align: right; width: 100%;' : ''}
-            ${textShadow ? `text-shadow: ${textShadow};` : ''}
-            line-height: 1.1;
-            white-space: pre;
-          ">${line}</div>`;
-          y += size * 1.1;
+          html += `<div style="${style}">${line}</div>`;
+          y += lh;
         });
       });
       return html;
@@ -195,7 +211,7 @@ ${fontCss}
 </html>`;
     }
 
-    static drawOnCanvas(ctx, dsl) {
+    static async drawOnCanvas(ctx, dsl) {
       const { Resolution, Background, Texts } = dsl.Thumbnail;
       const [w, h] = this.getResolution(Resolution.value);
       ctx.canvas.width = w;
@@ -205,8 +221,30 @@ ${fontCss}
         ctx.fillStyle = Background.color;
         ctx.fillRect(0, 0, w, h);
       } else if (Background.type === 'image') {
-        ctx.fillStyle = '#ccc';
-        ctx.fillRect(0, 0, w, h);
+        try {
+          const img = await loadImageUniversal(Background.imagePath);
+          // cover 알고리즘
+          const iw = img.width, ih = img.height;
+          const ir = iw / ih, cr = w / h;
+          let sx, sy, sw, sh;
+          if (ir > cr) {
+            // 이미지가 더 넓음: 좌우 잘라냄
+            sh = ih;
+            sw = ih * cr;
+            sx = (iw - sw) / 2;
+            sy = 0;
+          } else {
+            // 이미지가 더 높음: 상하 잘라냄
+            sw = iw;
+            sh = iw / cr;
+            sx = 0;
+            sy = (ih - sh) / 2;
+          }
+          ctx.drawImage(img, sx, sy, sw, sh, 0, 0, w, h);
+        } catch (e) {
+          ctx.fillStyle = '#ccc';
+          ctx.fillRect(0, 0, w, h);
+        }
       } else if (Background.type === 'gradient') {
         const grad = ctx.createLinearGradient(0, 0, w, 0);
         const stops = Background.colors;
@@ -215,46 +253,28 @@ ${fontCss}
         ctx.fillRect(0, 0, w, h);
       }
       // 텍스트
+      const M = 20;
       Texts.forEach(txt => {
         if (!txt.enabled) return;
         const lines = splitLines(txt.content);
         const size = txt.fontSize;
         const weight = txt.type === 'title' ? 'bold' : 'normal';
-        const outlineOffset = txt.outline ? (txt.outline.thickness || 2) / 2 : 0;
         ctx.font = `${weight} ${size}px ${txt.font.name}`;
         ctx.textBaseline = 'top';
-        // 수평 정렬
-        let x;
-        ctx.textAlign = 'left';
-        if (txt.position && txt.position.horizontal === 'center') {
-          ctx.textAlign = 'center';
-        } else if (txt.position && txt.position.horizontal === 'right') {
-          ctx.textAlign = 'right';
-        }
-        let y = 20 + outlineOffset;
-        if (txt.position.vertical === 'bottom') {
-          y = h - (lines.length * size * 1.1) - 20 - outlineOffset;
-        } else if (txt.position.vertical === 'middle') {
-          y = h / 2 - (lines.length * size * 1.1) / 2;
-        }
+        if (txt.outline) { ctx.lineWidth = txt.outline.thickness; ctx.strokeStyle = txt.outline.color; }
+        const lh = size * 1.1;
+        let y = txt.position.vertical === 'top' ? M
+          : txt.position.vertical === 'middle' ? (h - lines.length * lh) / 2
+            : h - lines.length * lh - M;
         lines.forEach(line => {
-          if (txt.position && txt.position.horizontal === 'center') {
-            x = w / 2;
-          } else if (txt.position && txt.position.horizontal === 'right') {
-            x = w - 20;
-          } else {
-            x = 20;
-          }
-          if (txt.outline) {
-            ctx.save();
-            ctx.lineWidth = typeof txt.outline.thickness === 'number' ? txt.outline.thickness : 2;
-            ctx.strokeStyle = txt.outline.color || '#000';
-            ctx.strokeText(line, x, y);
-            ctx.restore();
-          }
+          const textWidth = ctx.measureText(line).width;
+          let x = txt.position.horizontal === 'left' ? M
+            : txt.position.horizontal === 'center' ? (w - textWidth) / 2
+              : w - textWidth - M;
+          if (txt.outline) ctx.strokeText(line, x, y);
           ctx.fillStyle = txt.color;
           ctx.fillText(line, x, y);
-          y += size * 1.1;
+          y += lh;
         });
       });
     }
@@ -263,6 +283,7 @@ ${fontCss}
   return {
     ThumbnailRenderer,
     buildThumbnailHtml: ThumbnailRenderer.buildHtml,
-    drawThumbnailOnCanvas: ThumbnailRenderer.drawOnCanvas
+    drawThumbnailOnCanvas: ThumbnailRenderer.drawOnCanvas,
+    loadImageUniversal
   };
 }));
