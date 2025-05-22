@@ -79,6 +79,22 @@
     }
   }
 
+  // 텍스트 한 줄의 스타일 문자열을 생성하는 헬퍼 함수
+  function buildTextDivStyle({ x, y, font, fontSize, weight, color, align, outline }) {
+    let style = `position:absolute; top:${y}px; font-family:'${font}'; font-size:${fontSize}px; font-weight:${weight}; color:${color}; line-height:${LINE_HEIGHT}; white-space:pre;`;
+    if (align === 'center') {
+      style += ` left:${x}px; transform:translateX(-50%); text-align:center;`;
+    } else if (align === 'right') {
+      style += ` left:${x}px; transform:translateX(-100%); text-align:right;`;
+    } else {
+      style += ` left:${x}px; text-align:left;`;
+    }
+    if (outline) {
+      style += ` text-shadow:${buildOutlineCss(outline.color, outline.thickness)};`;
+    }
+    return style;
+  }
+
   class ThumbnailRenderer {
     static getResolution(value) {
       return RESOLUTIONS[value] || RESOLUTIONS['16:9'];
@@ -121,30 +137,30 @@
         // outline thickness 기본값 보정
         if (txt.outline && (!txt.outline.thickness || isNaN(txt.outline.thickness))) txt.outline.thickness = DEFAULT_OUTLINE_THICKNESS;
         const lines = splitLines(txt.content);
-        const size = txt.fontSize;
-        const weight = txt.type === 'title' ? 'bold' : 'normal';
-        const lh = size * LINE_HEIGHT;
+        const fontSize = txt.fontSize;
+        const fontFamily = txt.font.name;
+        const fontWeight = txt.type === 'title' ? 'bold' : 'normal';
+        const lineHeightPx = fontSize * LINE_HEIGHT;
+        const align = txt.position.horizontal || 'left';
         let y = txt.position.vertical === 'top' ? M
-          : txt.position.vertical === 'middle' ? (h - lines.length * lh) / 2
-            : h - lines.length * lh - M;
+          : txt.position.vertical === 'middle' ? (h - lines.length * lineHeightPx) / 2
+            : h - lines.length * lineHeightPx - M;
         lines.forEach(line => {
-          let x = txt.position.horizontal === 'left' ? M
-            : txt.position.horizontal === 'center' ? w / 2
+          let x = align === 'left' ? M
+            : align === 'center' ? w / 2
               : w - M;
-          let align = txt.position.horizontal || 'left';
-          let style = `position:absolute; top:${y}px; font-family:'${txt.font.name}'; font-size:${size}px; font-weight:${weight}; color:${txt.color}; line-height:${LINE_HEIGHT}; white-space:pre;`;
-          if (align === 'center') {
-            style += ` left:${x}px; transform:translateX(-50%); text-align:center;`;
-          } else if (align === 'right') {
-            style += ` left:${x}px; transform:translateX(-100%); text-align:right;`;
-          } else {
-            style += ` left:${x}px; text-align:left;`;
-          }
-          if (txt.outline) {
-            style += ` text-shadow:${buildOutlineCss(txt.outline.color, txt.outline.thickness)};`;
-          }
+          const style = buildTextDivStyle({
+            x,
+            y,
+            font: fontFamily,
+            fontSize,
+            weight: fontWeight,
+            color: txt.color,
+            align,
+            outline: txt.outline
+          });
           html += `<div style="${style}">${line}</div>`;
-          y += lh;
+          y += lineHeightPx;
         });
       });
       return html;
