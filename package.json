@@ -10,6 +10,9 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "canvas": "^3.1.0"
+    "canvas": "^3.1.0",
+    "fonteditor-core": "^2.4.1",
+    "playwright": "^1.52.0",
+    "woff2": "^1.0.0"
   }
 }
