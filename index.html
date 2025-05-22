@@ -2,288 +2,341 @@
 <html lang="ko" x-data="thumbnailApp()" x-init="init()">
 
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>퀵썸네일 Canvas + DSL</title>
-  <!-- Bootstrap 5 CSS -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-  <!-- Alpine.js -->
-  <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      padding: 20px;
-    }
-
-    .canvas-wrap {
-      border: 1px solid #ccc;
-      background: #f8fafc;
-      border-radius: 8px;
-      padding: 12px;
-    }
-
-    textarea,
-    input[type="text"],
-    select,
-    input[type="color"] {
-      width: 100%;
-      margin-top: 4px;
-      box-sizing: border-box;
-    }
-
-    textarea {
-      font-family: monospace;
-    }
-
-    .form-label {
-      margin-top: 10px;
-    }
-
-    .dsl-panel textarea {
-      min-height: 200px;
-    }
-
-    .canvas-wrap {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 300px;
-    }
-  </style>
-  <style x-text="fontFaceStyles()"></style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>퀵썸네일 Canvas + DSL</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Alpine.js -->
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+        
+        .canvas-wrap {
+            border: 1px solid #ccc;
+            background: #f8fafc;
+            border-radius: 8px;
+            padding: 12px;
+        }
+        
+        textarea,
+        input[type="text"],
+        select,
+        input[type="color"] {
+            width: 100%;
+            margin-top: 4px;
+            box-sizing: border-box;
+        }
+        
+        textarea {
+            font-family: monospace;
+        }
+        
+        .form-label {
+            margin-top: 10px;
+        }
+        
+        .dsl-panel textarea {
+            min-height: 200px;
+        }
+        
+        .canvas-wrap {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 300px;
+        }
+    </style>
+    <style x-text="fontFaceStyles()"></style>
 </head>
 
 <body class="bg-light">
-  <div class="container py-4">
-    <h2 class="mb-4 fw-bold text-primary">퀵썸네일 Canvas 미리보기 + DSL</h2>
-    <div class="row g-4">
-      <!-- Canvas Preview -->
-      <div class="col-md-6">
-        <div class="canvas-wrap shadow-sm bg-white">
-          <canvas x-ref="canvas"></canvas>
-        </div>
-      </div>
-      <!-- Controls -->
-      <div class="col-md-4">
-        <div class="card shadow-sm">
-          <div class="card-body">
-            <div class="d-flex justify-content-between align-items-center mb-2">
-              <h3 class="h5 mb-0">설정</h3>
-              <button class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#dslModal">DSL
-                보기</button>
+    <div class="container py-4">
+        <h2 class="mb-4 fw-bold text-primary">퀵썸네일 Canvas 미리보기 + DSL</h2>
+        <div class="row g-4">
+            <!-- Canvas Preview -->
+            <div class="col-md-6">
+                <div class="canvas-wrap shadow-sm bg-white">
+                    <canvas x-ref="canvas"></canvas>
+                </div>
             </div>
-            <div class="accordion" id="settingsAccordion">
-              <!-- 배경 설정 -->
-              <div class="accordion-item">
-                <h2 class="accordion-header" id="headingBg">
-                  <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseBg"
-                    aria-expanded="true" aria-controls="collapseBg">
+            <!-- Controls -->
+            <div class="col-md-4">
+                <div class="card shadow-sm">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h3 class="h5 mb-0">설정</h3>
+                            <button class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#dslModal">DSL
+                보기</button>
+                        </div>
+                        <div class="accordion" id="settingsAccordion">
+                            <!-- 배경 설정 -->
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="headingBg">
+                                    <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseBg" aria-expanded="true" aria-controls="collapseBg">
                     배경 설정
                   </button>
-                </h2>
-                <div id="collapseBg" class="accordion-collapse collapse show" aria-labelledby="headingBg"
-                  data-bs-parent="#settingsAccordion">
-                  <div class="accordion-body">
-                    <div class="mb-3">
-                      <label class="form-label">해상도</label>
-                      <select class="form-select" x-model="resolution" @change="update()">
+                                </h2>
+                                <div id="collapseBg" class="accordion-collapse collapse show" aria-labelledby="headingBg" data-bs-parent="#settingsAccordion">
+                                    <div class="accordion-body">
+                                        <div class="mb-3">
+                                            <label class="form-label">해상도</label>
+                                            <select class="form-select" x-model="resolution" @change="update()">
                         <option value="16:9">16:9</option>
                         <option value="9:16">9:16</option>
                         <option value="4:3">4:3</option>
                         <option value="1:1">1:1</option>
                       </select>
-                    </div>
-                    <div class="mb-3">
-                      <label class="form-label">배경 색상</label>
-                      <input type="color" class="form-control form-control-color" x-model="bgColor" @input="update()">
-                    </div>
-                    <div class="mb-3">
-                      <label class="form-label">배경 이미지 URL</label>
-                      <input type="text" class="form-control" x-model="bgImageUrl" @change="update()"
-                        placeholder="URL 입력">
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <!-- 폰트 설정 -->
-              <div class="accordion-item">
-                <h2 class="accordion-header" id="headingFont">
-                  <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
-                    data-bs-target="#collapseFont" aria-expanded="false" aria-controls="collapseFont">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">배경 색상</label>
+                                            <input type="color" class="form-control form-control-color" x-model="bgColor" @input="update()">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">배경 이미지 URL</label>
+                                            <input type="text" class="form-control" x-model="bgImageUrl" @change="update()" placeholder="URL 입력">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- 폰트 설정 -->
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="headingFont">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFont" aria-expanded="false" aria-controls="collapseFont">
                     폰트 설정
                   </button>
-                </h2>
-                <div id="collapseFont" class="accordion-collapse collapse" aria-labelledby="headingFont"
-                  data-bs-parent="#settingsAccordion">
-                  <div class="accordion-body">
-                    <div class="mb-3">
-                      <label class="form-label">Custom @font-face CSS</label>
-                      <textarea class="form-control" x-model="newFontCss" rows="3"
-                        placeholder="@font-face { ... }"></textarea>
-                      <button class="btn btn-outline-secondary btn-sm mt-2" @click="parseAndAddFontFace()">폰트
+                                </h2>
+                                <div id="collapseFont" class="accordion-collapse collapse" aria-labelledby="headingFont" data-bs-parent="#settingsAccordion">
+                                    <div class="accordion-body">
+                                        <div class="mb-3">
+                                            <label class="form-label">Custom @font-face CSS</label>
+                                            <textarea class="form-control" x-model="newFontCss" rows="3" placeholder="@font-face { ... }"></textarea>
+                                            <button class="btn btn-outline-secondary btn-sm mt-2" @click="parseAndAddFontFace()">폰트
                         추가</button>
-                    </div>
-                    <div class="mb-3">
-                      <label class="form-label">적용 폰트</label>
-                      <select class="form-select" x-model="fontFamily" @change="update()">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">적용 폰트</label>
+                                            <select class="form-select" x-model="fontFamily" @change="update()">
                         <template x-for="f in fontFaces" :key="f.name">
                           <option x-text="f.name" :value="f.name"></option>
                         </template>
                       </select>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <!-- 텍스트 설정 -->
-              <div class="accordion-item">
-                <h2 class="accordion-header" id="headingText">
-                  <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
-                    data-bs-target="#collapseText" aria-expanded="false" aria-controls="collapseText">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- 텍스트 설정 -->
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="headingText">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseText" aria-expanded="false" aria-controls="collapseText">
                     텍스트 설정
                   </button>
-                </h2>
-                <div id="collapseText" class="accordion-collapse collapse" aria-labelledby="headingText"
-                  data-bs-parent="#settingsAccordion">
-                  <div class="accordion-body">
-                    <div class="mb-3">
-                      <label class="form-label">제목 텍스트</label>
-                      <textarea class="form-control" x-model="titleText" @input="update()"></textarea>
-                    </div>
-                    <div class="row g-2 mb-3">
-                      <div class="col">
-                        <label class="form-label">제목 색상</label>
-                        <input type="color" class="form-control form-control-color" x-model="titleColor"
-                          @input="update()">
-                      </div>
-                      <div class="col d-flex align-items-end">
-                        <div class="form-check ms-2">
-                          <input class="form-check-input" type="checkbox" x-model="titleOutline" @change="update()"
-                            id="titleOutlineCheck">
-                          <label class="form-check-label" for="titleOutlineCheck">외곽선</label>
+                                </h2>
+                                <div id="collapseText" class="accordion-collapse collapse" aria-labelledby="headingText" data-bs-parent="#settingsAccordion">
+                                    <div class="accordion-body">
+                                        <div class="mb-3">
+                                            <label class="form-label">제목 텍스트</label>
+                                            <textarea class="form-control" x-model="titleText" @input="update()"></textarea>
+                                        </div>
+                                        <div class="row g-2 mb-3">
+                                            <div class="col">
+                                                <label class="form-label">제목 색상</label>
+                                                <input type="color" class="form-control form-control-color" x-model="titleColor" @input="update()">
+                                            </div>
+                                            <div class="col d-flex align-items-end">
+                                                <div class="form-check ms-2">
+                                                    <input class="form-check-input" type="checkbox" x-model="titleOutline" @change="update()" id="titleOutlineCheck">
+                                                    <label class="form-check-label" for="titleOutlineCheck">외곽선</label>
+                                                </div>
+                                                <input type="number" min="1" max="20" class="form-control ms-2" style="width:70px" x-model.number="titleOutlineThickness" :disabled="!titleOutline" @input="update()">
+                                                <span class="ms-1" style="font-size:0.9em;">px</span>
+                                            </div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">부제목 텍스트</label>
+                                            <textarea class="form-control" x-model="subtitleText" @input="update()"></textarea>
+                                        </div>
+                                        <div class="row g-2 mb-3">
+                                            <div class="col">
+                                                <label class="form-label">부제목 색상</label>
+                                                <input type="color" class="form-control form-control-color" x-model="subtitleColor" @input="update()">
+                                            </div>
+                                            <div class="col d-flex align-items-end">
+                                                <div class="form-check ms-2">
+                                                    <input class="form-check-input" type="checkbox" x-model="subtitleVisible" @change="update()" id="subtitleVisibleCheck">
+                                                    <label class="form-check-label" for="subtitleVisibleCheck">부제목 표시</label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        <input type="number" min="1" max="20" class="form-control ms-2" style="width:70px"
-                          x-model.number="titleOutlineThickness" :disabled="!titleOutline" @input="update()">
-                        <span class="ms-1" style="font-size:0.9em;">px</span>
-                      </div>
                     </div>
-                    <div class="mb-3">
-                      <label class="form-label">부제목 텍스트</label>
-                      <textarea class="form-control" x-model="subtitleText" @input="update()"></textarea>
-                    </div>
-                    <div class="row g-2 mb-3">
-                      <div class="col">
-                        <label class="form-label">부제목 색상</label>
-                        <input type="color" class="form-control form-control-color" x-model="subtitleColor"
-                          @input="update()">
-                      </div>
-                      <div class="col d-flex align-items-end">
-                        <div class="form-check ms-2">
-                          <input class="form-check-input" type="checkbox" x-model="subtitleVisible" @change="update()"
-                            id="subtitleVisibleCheck">
-                          <label class="form-check-label" for="subtitleVisibleCheck">부제목 표시</label>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
                 </div>
-              </div>
             </div>
-          </div>
-        </div>
-      </div>
 
+        </div>
     </div>
-  </div>
 
-  <!-- DSL Modal -->
-  <div class="modal fade" id="dslModal" tabindex="-1" aria-labelledby="dslModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="dslModalLabel">DSL (JSON)</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+    <!-- DSL Modal -->
+    <div class="modal fade" id="dslModal" tabindex="-1" aria-labelledby="dslModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="dslModalLabel">DSL (JSON)</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <textarea class="form-control" readonly x-text="dsl" style="min-height:300px"></textarea>
+                </div>
+            </div>
         </div>
-        <div class="modal-body">
-          <textarea class="form-control" readonly x-text="dsl" style="min-height:300px"></textarea>
-        </div>
-      </div>
     </div>
-  </div>
 
-  <!-- Bootstrap 5 JS (for modal, etc. if needed) -->
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-  <script src="thumbnailRenderer.js"></script>
-  <script>
-    function thumbnailApp() {
-      return {
-        resolution: '16:9',
-        bgColor: '#a3e635',
-        bgImageUrl: '',
-        fontFaces: [],
-        newFontCss: '',
-        fontFamily: '',
-        titleText: '10초만에\n썸네일 만드는 법',
-        titleColor: '#4ade80',
-        titleOutline: true,
-        titleOutlineThickness: 7,
-        subtitleText: '쉽고 빠르게 썸네일을 만드는 법\n= 퀵썸네일 쓰기',
-        subtitleColor: '#ffffff',
-        subtitleVisible: true,
-        dsl: '',
-        dslObj: null,
-        bgImageObj: null,
-        init() {
-          this.fontFaces = [
-            { name: 'SBAggroB', url: 'https://fastly.jsdelivr.net/gh/projectnoonnu/noonfonts_2108@1.1/SBAggroB.woff', weight: 'normal', style: 'normal' }
-          ];
-          this.fontFamily = this.fontFaces[0].name;
-          this.update();
-        },
-        parseAndAddFontFace() {
-          const css = this.newFontCss;
-          const nameMatch = css.match(/font-family\s*:\s*['"]([^'"]+)['"]/);
-          const urlMatch = css.match(/src\s*:\s*url\(['"]?([^'")]+)['"]?\)/);
-          const weightMatch = css.match(/font-weight\s*:\s*(\w+)/);
-          const styleMatch = css.match(/font-style\s*:\s*(\w+)/);
-          if (nameMatch && urlMatch) {
-            this.fontFaces.push({
-              name: nameMatch[1],
-              url: urlMatch[1],
-              weight: weightMatch ? weightMatch[1] : 'normal',
-              style: styleMatch ? styleMatch[1] : 'normal'
-            });
-            this.fontFamily = nameMatch[1];
-            this.newFontCss = '';
-            this.update();
-          }
-        },
-        fontFaceStyles() {
-          return this.fontFaces.map(f =>
-            `@font-face { font-family: '${f.name}'; src: url('${f.url}') format('woff2'); font-weight: ${f.weight}; font-style: ${f.style}; }`
-          ).join('\n');
-        },
-        async draw() {
-          const cv = this.$refs.canvas;
-          const ctx = cv.getContext('2d');
-          if (!this.dslObj) return;
-          // drawOnCanvas가 비동기이므로 await 호출
-          await window.thumbnailRenderer.ThumbnailRenderer.drawOnCanvas(ctx, this.dslObj);
-        },
-        update() {
-          this.dsl = this.generateDSL();
-          this.dslObj = JSON.parse(this.dsl);
-          // draw()만 호출 (renderer가 모든 환경에서 이미지 처리)
-          this.draw();
-        },
-        generateDSL() {
-          const bg = this.bgImageUrl ? { type: 'image', imagePath: this.bgImageUrl } : { type: 'solid', color: this.bgColor };
-          const texts = [{ type: 'title', content: this.titleText, position: { vertical: 'top', horizontal: 'left' }, font: { name: this.fontFamily, faces: this.fontFaces }, fontSize: 48, color: this.titleColor, outline: this.titleOutline ? { thickness: this.titleOutlineThickness, color: '#000' } : null, enabled: true }];
-          if (this.subtitleVisible) texts.push({ type: 'subtitle', content: this.subtitleText, position: { vertical: 'bottom', horizontal: 'left' }, font: { name: this.fontFamily, faces: this.fontFaces }, fontSize: 24, color: this.subtitleColor, outline: null, enabled: true });
-          return JSON.stringify({ Thumbnail: { Resolution: { type: 'preset', value: this.resolution }, Background: bg, Texts: texts }, TemplateMeta: { name: '', shareable: false } }, null, 2);
+    <!-- Bootstrap 5 JS (for modal, etc. if needed) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="thumbnailRenderer.js"></script>
+    <script>
+        function thumbnailApp() {
+            return {
+                resolution: '16:9',
+                bgColor: '#a3e635',
+                bgImageUrl: '',
+                fontFaces: [],
+                newFontCss: '',
+                fontFamily: '',
+                titleText: '10초만에\n썸네일 만드는 법',
+                titleColor: '#4ade80',
+                titleOutline: true,
+                titleOutlineThickness: 7,
+                subtitleText: '쉽고 빠르게 썸네일을 만드는 법\n= 퀵썸네일 쓰기',
+                subtitleColor: '#ffffff',
+                subtitleVisible: true,
+                dsl: '',
+                dslObj: null,
+                bgImageObj: null,
+                init() {
+                    this.fontFaces = [{
+                        name: 'SBAggroB',
+                        url: 'https://fastly.jsdelivr.net/gh/projectnoonnu/noonfonts_2108@1.1/SBAggroB.woff',
+                        weight: 'normal',
+                        style: 'normal'
+                    }];
+                    this.fontFamily = this.fontFaces[0].name;
+                    this.update();
+                },
+                parseAndAddFontFace() {
+                    const css = this.newFontCss;
+                    const nameMatch = css.match(/font-family\s*:\s*['"]([^'"]+)['"]/);
+                    const urlMatch = css.match(/src\s*:\s*url\(['"]?([^'")]+)['"]?\)/);
+                    const weightMatch = css.match(/font-weight\s*:\s*(\w+)/);
+                    const styleMatch = css.match(/font-style\s*:\s*(\w+)/);
+                    if (nameMatch && urlMatch) {
+                        this.fontFaces.push({
+                            name: nameMatch[1],
+                            url: urlMatch[1],
+                            weight: weightMatch ? weightMatch[1] : 'normal',
+                            style: styleMatch ? styleMatch[1] : 'normal'
+                        });
+                        this.fontFamily = nameMatch[1];
+                        this.newFontCss = '';
+                        this.update();
+                    }
+                },
+                fontFaceStyles() {
+                    return this.fontFaces.map(f =>
+                        `@font-face { font-family: '${f.name}'; src: url('${f.url}') format('woff2'); font-weight: ${f.weight}; font-style: ${f.style}; }`
+                    ).join('\n');
+                },
+                async draw() {
+                    const cv = this.$refs.canvas;
+                    const ctx = cv.getContext('2d');
+                    if (!this.dslObj) return;
+                    // drawOnCanvas가 비동기이므로 await 호출
+                    await window.thumbnailRenderer.ThumbnailRenderer.drawOnCanvas(ctx, this.dslObj);
+                },
+                update() {
+                    this.dsl = this.generateDSL();
+                    this.dslObj = JSON.parse(this.dsl);
+                    // draw()만 호출 (renderer가 모든 환경에서 이미지 처리)
+                    this.draw();
+                },
+                generateDSL() {
+                    // 배경 설정
+                    const bg = this.bgImageUrl ? {
+                        type: 'image',
+                        imagePath: this.bgImageUrl
+                    } : {
+                        type: 'solid',
+                        color: this.bgColor
+                    };
+
+                    // 텍스트 설정
+                    const texts = [
+                        // 메인 타이틀
+                        {
+                            type: 'title',
+                            content: this.titleText,
+                            position: {
+                                vertical: 'top',
+                                horizontal: 'left'
+                            },
+                            font: {
+                                name: this.fontFamily,
+                                faces: this.fontFaces
+                            },
+                            fontSize: 48,
+                            color: this.titleColor,
+                            outline: this.titleOutline ? {
+                                thickness: this.titleOutlineThickness,
+                                color: '#000'
+                            } : null,
+                            enabled: true
+                        }
+                    ];
+
+                    // 서브타이틀이 보이는 경우 추가
+                    if (this.subtitleVisible) {
+                        texts.push({
+                            type: 'subtitle',
+                            content: this.subtitleText,
+                            position: {
+                                vertical: 'bottom',
+                                horizontal: 'left'
+                            },
+                            font: {
+                                name: this.fontFamily,
+                                faces: this.fontFaces
+                            },
+                            fontSize: 24,
+                            color: this.subtitleColor,
+                            outline: null,
+                            enabled: true
+                        });
+                    }
+
+                    // DSL 객체 생성 및 JSON 문자열로 변환
+                    return JSON.stringify({
+                        Thumbnail: {
+                            Resolution: {
+                                type: 'preset',
+                                value: this.resolution
+                            },
+                            Background: bg,
+                            Texts: texts
+                        },
+                        TemplateMeta: {
+                            name: '',
+                            shareable: false
+                        }
+                    }, null, 2);
+                }
+            }
         }
-      }
-    }
-  </script>
+    </script>
 </body>
-
 </html>
