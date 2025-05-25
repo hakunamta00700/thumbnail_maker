@@ -82,14 +82,45 @@
                                 </h2>
                                 <div id="collapseBg" class="accordion-collapse collapse show" aria-labelledby="headingBg" data-bs-parent="#settingsAccordion">
                                     <div class="accordion-body">
+                                        <!-- Resolution Mode Radio Buttons -->
+                                        <div class="mb-3">
+                                            <label class="form-label">크기 모드</label>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" value="preset" x-model="resolutionMode" @change="onResolutionModeChange()" id="resModePreset">
+                                                <label class="form-check-label" for="resModePreset">Preset</label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" value="fixedRatio" x-model="resolutionMode" @change="onResolutionModeChange()" id="resModeFixed">
+                                                <label class="form-check-label" for="resModeFixed">Fixed Ratio</label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" value="custom" x-model="resolutionMode" @change="onResolutionModeChange()" id="resModeCustom">
+                                                <label class="form-check-label" for="resModeCustom">Custom</label>
+                                            </div>
+                                        </div>
+                                        <!-- Aspect Ratio Dropdown (Modified) -->
                                         <div class="mb-3">
                                             <label class="form-label">해상도</label>
-                                            <select class="form-select" x-model="resolution" @change="update()">
-                        <option value="16:9">16:9</option>
-                        <option value="9:16">9:16</option>
-                        <option value="4:3">4:3</option>
-                        <option value="1:1">1:1</option>
-                      </select>
+                                            <select class="form-select" x-model="currentAspectRatio" @change="onAspectRatioChange()" :disabled="resolutionMode === 'custom'">
+                                                <option value="16:9">16:9</option>
+                                                <option value="9:16">9:16</option>
+                                                <option value="4:3">4:3</option>
+                                                <option value="1:1">1:1</option>
+                                            </select>
+                                        </div>
+                                        <!-- Width Input -->
+                                        <div class="mb-3 row">
+                                            <label class="col-sm-2 col-form-label">너비</label>
+                                            <div class="col-sm-10">
+                                                <input type="number" class="form-control" x-model.number="inputWidth" @input="onDimensionInputChange('width')" @focus="fixedRatioDrivingInput = 'width'" :disabled="resolutionMode === 'preset'">
+                                            </div>
+                                        </div>
+                                        <!-- Height Input -->
+                                        <div class="mb-3 row">
+                                            <label class="col-sm-2 col-form-label">높이</label>
+                                            <div class="col-sm-10">
+                                                <input type="number" class="form-control" x-model.number="inputHeight" @input="onDimensionInputChange('height')" @focus="fixedRatioDrivingInput = 'height'" :disabled="resolutionMode === 'preset'">
+                                            </div>
                                         </div>
                                         <div class="mb-3">
                                             <label class="form-label">배경 색상</label>
@@ -310,12 +341,18 @@
                 subtitleLineHeight: 1.1,
                 bgImageOpacity: 1.0,
                 bgImageBlur: 0,
+                currentAspectRatio: '16:9', // Renamed from resolution
+                resolutionMode: 'preset',
+                inputWidth: 480, // Default, will be updated by init
+                inputHeight: 270, // Default, will be updated by init
+                fixedRatioDrivingInput: 'width', // Or null
                 titleGridPosition: 'tl',
                 subtitleGridPosition: 'bl',
                 dsl: '',
                 dslObj: null,
                 bgImageObj: null,
                 init() {
+                    this.updateDimensionsFromPreset(); // Call new method
                     this.fontFaces = [{
                         name: 'SBAggroB',
                         url: 'https://fastly.jsdelivr.net/gh/projectnoonnu/noonfonts_2108@1.1/SBAggroB.woff',
@@ -360,6 +397,67 @@
                     this.dslObj = JSON.parse(this.dsl);
                     // draw()만 호출 (renderer가 모든 환경에서 이미지 처리)
                     this.draw();
+                },
+                getPresetDimensions(ratioString) {
+                    const presets = {
+                        '16:9': { w: 480, h: 270 },
+                        '9:16': { w: 270, h: 480 },
+                        '4:3': { w: 480, h: 360 },
+                        '1:1': { w: 360, h: 360 }
+                    };
+                    return presets[ratioString];
+                },
+                updateDimensionsFromPreset() {
+                    const dims = this.getPresetDimensions(this.currentAspectRatio);
+                    if (dims) {
+                        this.inputWidth = dims.w;
+                        this.inputHeight = dims.h;
+                    }
+                    this.update(); // Refresh DSL/canvas
+                },
+                onResolutionModeChange() {
+                    if (this.resolutionMode === 'preset') {
+                        this.updateDimensionsFromPreset(); // This will also call this.update()
+                    } else if (this.resolutionMode === 'fixedRatio') {
+                        // When switching to fixedRatio, recalculate based on current aspect ratio and inputWidth
+                        // This ensures consistency if user was previously in 'custom' or 'preset'
+                        this.fixedRatioDrivingInput = 'width'; // Default to driving by width
+                        this.recalculateFixedDimensions();
+                        this.update();
+                    } else { // custom mode
+                        // No specific action needed other than enabling inputs, which is handled by :disabled
+                        this.update();
+                    }
+                },
+                onAspectRatioChange() {
+                    if (this.resolutionMode === 'preset') {
+                        this.updateDimensionsFromPreset(); // This calls this.update()
+                    } else if (this.resolutionMode === 'fixedRatio') {
+                        this.recalculateFixedDimensions();
+                        this.update();
+                    }
+                    // No update() needed if custom, as aspect ratio dropdown is disabled
+                },
+                onDimensionInputChange(changedInput) {
+                    this.fixedRatioDrivingInput = changedInput;
+                    if (this.resolutionMode === 'fixedRatio') {
+                        this.recalculateFixedDimensions();
+                    }
+                    this.update();
+                },
+                recalculateFixedDimensions() {
+                    if (!this.currentAspectRatio) return;
+                    const ratioParts = this.currentAspectRatio.split(':');
+                    if (ratioParts.length !== 2) return;
+                    const aspectNum = parseFloat(ratioParts[0]) / parseFloat(ratioParts[1]);
+                    if (isNaN(aspectNum) || aspectNum <= 0) return;
+
+                    if (this.fixedRatioDrivingInput === 'width' && this.inputWidth != null) {
+                        this.inputHeight = Math.round(this.inputWidth / aspectNum);
+                    } else if (this.fixedRatioDrivingInput === 'height' && this.inputHeight != null) {
+                        this.inputWidth = Math.round(this.inputHeight * aspectNum);
+                    }
+                    // No this.update() here, called by initiator
                 },
                 generateDSL() {
                     // 배경 설정
@@ -418,12 +516,55 @@
                     }
 
                     // DSL 객체 생성 및 JSON 문자열로 변환
+                    let resolutionDSL;
+                    // Assume this.resolutionMode, this.currentAspectRatio, this.inputWidth, this.inputHeight will be available from thumbnailApp scope.
+                    // These properties will be properly defined and managed in the next plan step.
+                    const mode = this.resolutionMode || 'preset'; // Default to 'preset' if undefined for now
+                    const aspectRatio = this.currentAspectRatio || '16:9'; // Default
+                    const width = this.inputWidth;
+                    const height = this.inputHeight;
+
+                    if (mode === 'preset') {
+                        resolutionDSL = {
+                            type: 'preset',
+                            value: aspectRatio // Uses the existing aspect ratio string like '16:9'
+                        };
+                    } else if (mode === 'fixedRatio') {
+                        resolutionDSL = {
+                            type: 'fixedRatio',
+                            ratioValue: aspectRatio, // e.g., '16:9'
+                            // In a complete implementation, logic would ensure either width or height is present
+                            // For this step, we just structure it; actual values depend on future UI state
+                        };
+                        if (this.fixedRatioDrivingInput === 'width' && width != null) {
+                            resolutionDSL.width = parseInt(width, 10);
+                        } else if (this.fixedRatioDrivingInput === 'height' && height != null) {
+                            resolutionDSL.height = parseInt(height, 10);
+                        } else if (width != null) { // Default to width if driving input not specified or if it leads to no value
+                            resolutionDSL.width = parseInt(width, 10);
+                        } else if (height != null) {
+                            resolutionDSL.height = parseInt(height, 10);
+                        } else { // Fallback: if no dimension is set, use preset width from current aspect ratio
+                            const presetDims = this.getPresetDimensions(aspectRatio);
+                            if(presetDims) resolutionDSL.width = presetDims.w;
+                        }
+
+                    } else if (mode === 'custom') {
+                        resolutionDSL = {
+                            type: 'custom',
+                            width: parseInt(width, 10),
+                            height: parseInt(height, 10)
+                        };
+                    } else { // Fallback to preset if mode is unknown
+                         resolutionDSL = {
+                            type: 'preset',
+                            value: aspectRatio
+                        };
+                    }
+                    
                     return JSON.stringify({
                         Thumbnail: {
-                            Resolution: {
-                                type: 'preset',
-                                value: this.resolution
-                            },
+                            Resolution: resolutionDSL, // Use the new structure
                             Background: bg,
                             Texts: texts
                         },
