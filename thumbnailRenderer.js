@@ -90,8 +90,64 @@
   }
 
   class ThumbnailRenderer {
-    static getResolution(value) {
-      return RESOLUTIONS[value] || RESOLUTIONS['16:9'];
+    static getResolution(dslResolutionObject) {
+      // Default/Error Handling
+      if (!dslResolutionObject || !dslResolutionObject.type) {
+        return RESOLUTIONS['16:9']; // Default resolution
+      }
+
+      const type = dslResolutionObject.type;
+
+      if (type === 'preset') {
+        return RESOLUTIONS[dslResolutionObject.value] || RESOLUTIONS['16:9'];
+      } else if (type === 'custom') {
+        const w = parseInt(dslResolutionObject.width, 10);
+        const h = parseInt(dslResolutionObject.height, 10);
+        if (!isNaN(w) && w > 0 && !isNaN(h) && h > 0) {
+          return [w, h];
+        }
+        return RESOLUTIONS['16:9']; // Fallback for invalid custom dimensions
+      } else if (type === 'fixedRatio') {
+        const ratioString = dslResolutionObject.ratioValue;
+        if (!ratioString || typeof ratioString !== 'string') {
+          return RESOLUTIONS['16:9']; // Fallback
+        }
+        const parts = ratioString.split(':');
+        if (parts.length !== 2) {
+          return RESOLUTIONS['16:9']; // Fallback
+        }
+        const rW = parseFloat(parts[0]);
+        const rH = parseFloat(parts[1]);
+        if (isNaN(rW) || isNaN(rH) || rW <= 0 || rH <= 0) {
+          return RESOLUTIONS['16:9']; // Fallback
+        }
+        const numericRatio = rW / rH;
+        let calcWidth, calcHeight;
+
+        if (dslResolutionObject.width != null) {
+          calcWidth = parseInt(dslResolutionObject.width, 10);
+          if (isNaN(calcWidth) || calcWidth <= 0) {
+            return RESOLUTIONS['16:9']; // Fallback
+          }
+          calcHeight = Math.round(calcWidth / numericRatio);
+        } else if (dslResolutionObject.height != null) {
+          calcHeight = parseInt(dslResolutionObject.height, 10);
+          if (isNaN(calcHeight) || calcHeight <= 0) {
+            return RESOLUTIONS['16:9']; // Fallback
+          }
+          calcWidth = Math.round(calcHeight * numericRatio);
+        } else {
+          return RESOLUTIONS['16:9']; // Fallback if neither width nor height provided
+        }
+
+        if (calcWidth > 0 && calcHeight > 0) {
+          return [calcWidth, calcHeight];
+        }
+        return RESOLUTIONS['16:9']; // Fallback for invalid calculated dimensions
+      }
+
+      // Final fallback for unknown type or other issues
+      return RESOLUTIONS['16:9'];
     }
 
     static buildFontCss(texts) {
@@ -197,7 +253,7 @@
 
     static buildHtml(dsl) {
       const { Resolution, Background, Texts } = dsl.Thumbnail;
-      const [w, h] = this.getResolution(Resolution.value);
+      const [w, h] = this.getResolution(Resolution); // Updated call
       const fontCss = this.buildFontCss(Texts);
       const bgStyle = this.buildBackgroundStyle(Background); // This now returns specific styles based on type
       const textHtml = this.buildTextLayers(Texts.map(t => ({ ...t, _w: w, _h: h })));
@@ -242,7 +298,7 @@ ${fontCss}
 
     static async drawOnCanvas(ctx, dsl) {
       const { Resolution, Background, Texts } = dsl.Thumbnail;
-      const [w, h] = this.getResolution(Resolution.value);
+      const [w, h] = this.getResolution(Resolution); // Updated call
       ctx.canvas.width = w;
       ctx.canvas.height = h;
       // 배경
