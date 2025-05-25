@@ -80,16 +80,10 @@
   }
 
   // 텍스트 한 줄의 스타일 문자열을 생성하는 헬퍼 함수
-  function buildTextDivStyle({ x, y, font, fontSize, weight, color, align, outline }) {
-    let style = `position:absolute; top:${y}px; font-family:'${font}'; font-size:${fontSize}px; font-weight:${weight}; color:${color}; line-height:${LINE_HEIGHT}; white-space:pre;`;
-    if (align === 'center') {
-      style += ` left:${x}px; transform:translateX(-50%); text-align:center;`;
-    } else if (align === 'right') {
-      style += ` left:${x}px; transform:translateX(-100%); text-align:right;`;
-    } else {
-      style += ` left:${x}px; text-align:left;`;
-    }
-    if (outline) {
+  function buildTextDivStyle({ fontFamily, fontSize, fontWeight, fontStyle, color, effectiveTextAlign, lineHeight, outline }) {
+    let style = `font-family:'${fontFamily}'; font-size:${fontSize}px; font-weight:${fontWeight || 'normal'}; font-style:${fontStyle || 'normal'}; color:${color}; line-height:${lineHeight || LINE_HEIGHT}; white-space:pre; text-align:${effectiveTextAlign || 'left'};`;
+    // outline은 text-shadow로 구현
+    if (outline && outline.color && outline.thickness > 0) {
       style += ` text-shadow:${buildOutlineCss(outline.color, outline.thickness)};`;
     }
     return style;
@@ -120,9 +114,8 @@
         ).join(', ');
         return `background: linear-gradient(90deg, ${stops});`;
       } else if (bg.type === 'image') {
-        return `background-image: url('${bg.imagePath}');
-        background-size: cover;
-        background-position: center;`;
+        // Styles for the dedicated background image div
+        return `width:100%; height:100%; background-image: url('${bg.imagePath}'); background-size: cover; background-position: center; opacity: ${typeof bg.imageOpacity === 'number' ? bg.imageOpacity : 1.0}; filter: blur(${bg.imageBlur || 0}px);`;
       }
       return '';
     }
@@ -139,29 +132,65 @@
         const lines = splitLines(txt.content);
         const fontSize = txt.fontSize;
         const fontFamily = txt.font.name;
-        const fontWeight = txt.type === 'title' ? 'bold' : 'normal';
-        const lineHeightPx = fontSize * LINE_HEIGHT;
-        const align = txt.position.horizontal || 'left';
-        let y = txt.position.vertical === 'top' ? M
-          : txt.position.vertical === 'middle' ? (h - lines.length * lineHeightPx) / 2
-            : h - lines.length * lineHeightPx - M;
+        const currentLineHeight = txt.lineHeight || LINE_HEIGHT;
+        // const lineHeightPx = fontSize * currentLineHeight; // Not directly used here for y positioning of block
+
+        const gridPosition = txt.gridPosition || 'tl'; // Default to top-left
+        const row = gridPosition[0]; // t, m, b
+        const col = gridPosition[1]; // l, c, r
+
+        let blockStyle = 'position: absolute;';
+        let effectiveTextAlign = 'left';
+
+        // Determine block horizontal position and text-align
+        if (col === 'l') {
+          blockStyle += `left: ${M}px;`;
+          effectiveTextAlign = 'left';
+        } else if (col === 'c') {
+          blockStyle += `left: 50%;`; // translateX will be added
+          effectiveTextAlign = 'center';
+        } else { // col === 'r'
+          blockStyle += `right: ${M}px;`;
+          effectiveTextAlign = 'right';
+        }
+
+        // Determine block vertical position
+        if (row === 't') {
+          blockStyle += `top: ${M}px;`;
+        } else if (row === 'm') {
+          blockStyle += `top: 50%;`; // translateY will be added
+        } else { // row === 'b'
+          blockStyle += `bottom: ${M}px;`;
+        }
+        
+        // Add transforms for centering
+        let transformValue = '';
+        if (row === 'm' && col === 'c') {
+            transformValue = 'translate(-50%, -50%)';
+        } else if (row === 'm') {
+            transformValue = 'translateY(-50%)';
+        } else if (col === 'c') {
+            transformValue = 'translateX(-50%)';
+        }
+        if (transformValue) {
+            blockStyle += `transform: ${transformValue};`;
+        }
+        
+        html += `<div style="${blockStyle}">`;
         lines.forEach(line => {
-          let x = align === 'left' ? M
-            : align === 'center' ? w / 2
-              : w - M;
-          const style = buildTextDivStyle({
-            x,
-            y,
-            font: fontFamily,
+          const lineStyle = buildTextDivStyle({
+            fontFamily: fontFamily,
             fontSize,
-            weight: fontWeight,
+            fontWeight: txt.fontWeight,
+            fontStyle: txt.fontStyle,
             color: txt.color,
-            align,
+            effectiveTextAlign: effectiveTextAlign,
+            lineHeight: currentLineHeight,
             outline: txt.outline
           });
-          html += `<div style="${style}">${line}</div>`;
-          y += lineHeightPx;
+          html += `<div style="${lineStyle}">${line}</div>`;
         });
+        html += `</div>`;
       });
       return html;
     }
@@ -170,8 +199,16 @@
       const { Resolution, Background, Texts } = dsl.Thumbnail;
       const [w, h] = this.getResolution(Resolution.value);
       const fontCss = this.buildFontCss(Texts);
-      const bgStyle = this.buildBackgroundStyle(Background);
+      const bgStyle = this.buildBackgroundStyle(Background); // This now returns specific styles based on type
       const textHtml = this.buildTextLayers(Texts.map(t => ({ ...t, _w: w, _h: h })));
+
+      let bgImageHtml = '';
+      if (Background.type === 'image') {
+        bgImageHtml = `
+    <div id="thumb-bg-image-container" style="position:absolute; top:0; left:0; width:100%; height:100%; z-index:0;">
+      <div id="thumb-bg-image" style="${bgStyle}"></div>
+    </div>`;
+      }
 
       return `<!DOCTYPE html>
 <html>
@@ -185,13 +222,18 @@ ${fontCss}
       width: ${w}px;
       height: ${h}px;
       overflow: hidden;
-      ${bgStyle}
+      ${Background.type !== 'image' ? bgStyle : ''}
     }
-    #thumb div { display: block; }
+    /* Text layers will be direct children of #thumb or within a container that is a direct child.
+       If they are direct children, they will stack on top of #thumb-bg-image-container due to z-index:0 on the container.
+       If text layers are wrapped, ensure that wrapper also has a z-index or is positioned.
+       The current buildTextLayers creates divs that are direct children, so this should be fine. */
+    #thumb div { display: block; } /* This might need adjustment if text layers need explicit stacking context */
   </style>
 </head>
 <body>
   <div id="thumb">
+    ${bgImageHtml}
     ${textHtml}
   </div>
 </body>
@@ -227,10 +269,22 @@ ${fontCss}
             sx = 0;
             sy = (ih - sh) / 2;
           }
+          const originalAlpha = ctx.globalAlpha;
+          const originalFilter = ctx.filter;
+          ctx.globalAlpha = typeof Background.imageOpacity === 'number' ? Background.imageOpacity : 1.0;
+          ctx.filter = Background.imageBlur ? `blur(${Background.imageBlur}px)` : 'none';
+          
           ctx.drawImage(img, sx, sy, sw, sh, 0, 0, w, h);
+          
+          ctx.globalAlpha = originalAlpha;
+          ctx.filter = originalFilter;
         } catch (e) {
-          ctx.fillStyle = '#ccc';
+          console.error("Error loading or drawing background image:", e);
+          ctx.fillStyle = '#ccc'; // Fallback color
           ctx.fillRect(0, 0, w, h);
+          // Ensure context is reset even if image loading fails and we draw fallback
+          if (typeof originalAlpha !== 'undefined') ctx.globalAlpha = originalAlpha;
+          if (typeof originalFilter !== 'undefined') ctx.filter = originalFilter;
         }
       } else if (Background.type === 'gradient') {
         const grad = ctx.createLinearGradient(0, 0, w, 0);
@@ -247,23 +301,60 @@ ${fontCss}
         if (txt.outline && (!txt.outline.thickness || isNaN(txt.outline.thickness))) txt.outline.thickness = DEFAULT_OUTLINE_THICKNESS;
         const lines = splitLines(txt.content);
         const size = txt.fontSize;
-        const weight = txt.type === 'title' ? 'bold' : 'normal';
-        ctx.font = `${weight} ${size}px ${txt.font.name}`;
-        ctx.textBaseline = 'top';
-        if (txt.outline) { ctx.lineWidth = txt.outline.thickness; ctx.strokeStyle = txt.outline.color; }
-        const lh = size * LINE_HEIGHT;
-        let y = txt.position.vertical === 'top' ? M
-          : txt.position.vertical === 'middle' ? (h - lines.length * lh) / 2
-            : h - lines.length * lh - M;
-        lines.forEach(line => {
-          const textWidth = ctx.measureText(line).width;
-          let x = txt.position.horizontal === 'left' ? M
-            : txt.position.horizontal === 'center' ? (w - textWidth) / 2
-              : w - textWidth - M;
-          if (txt.outline) ctx.strokeText(line, x, y);
+        const currentFontWeight = txt.fontWeight || 'normal';
+        const currentFontStyle = txt.fontStyle || 'normal';
+        // textAlign is now derived from gridPosition
+        const currentLineHeight = txt.lineHeight || LINE_HEIGHT;
+
+        ctx.font = `${currentFontStyle} ${currentFontWeight} ${size}px ${txt.font.name}`;
+        ctx.textBaseline = 'top'; // Set for all cases
+
+        if (txt.outline && txt.outline.color && txt.outline.thickness > 0) {
+             ctx.lineWidth = txt.outline.thickness;
+             ctx.strokeStyle = txt.outline.color;
+        } else {
+            ctx.lineWidth = 0;
+            ctx.strokeStyle = 'transparent';
+        }
+
+        const lh = size * currentLineHeight;
+        const totalTextHeight = lines.length * lh;
+        
+        const gridPosition = txt.gridPosition || 'tl'; // Default to top-left
+        const row = gridPosition[0]; // t, m, b
+        const col = gridPosition[1]; // l, c, r
+
+        let targetX;
+        let canvasTextAlign;
+
+        if (col === 'l') {
+          canvasTextAlign = 'left';
+          targetX = M;
+        } else if (col === 'c') {
+          canvasTextAlign = 'center';
+          targetX = w / 2;
+        } else { // col === 'r'
+          canvasTextAlign = 'right';
+          targetX = w - M;
+        }
+        ctx.textAlign = canvasTextAlign;
+
+        let baseY;
+        if (row === 't') {
+          baseY = M;
+        } else if (row === 'm') {
+          baseY = (h / 2) - (totalTextHeight / 2);
+        } else { // row === 'b'
+          baseY = h - M - totalTextHeight;
+        }
+
+        lines.forEach((line, lineIndex) => {
+          const currentY = baseY + (lineIndex * lh);
+          if (txt.outline && txt.outline.color && txt.outline.thickness > 0) {
+            ctx.strokeText(line, targetX, currentY);
+          }
           ctx.fillStyle = txt.color;
-          ctx.fillText(line, x, y);
-          y += lh;
+          ctx.fillText(line, targetX, currentY);
         });
       });
     }

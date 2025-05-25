@@ -99,6 +99,16 @@
                                             <label class="form-label">배경 이미지 URL</label>
                                             <input type="text" class="form-control" x-model="bgImageUrl" @change="update()" placeholder="URL 입력">
                                         </div>
+                                        <!-- Background Image Opacity Slider -->
+                                        <div class="mb-3">
+                                            <label class="form-label">배경 이미지 투명도 <span x-text="bgImageOpacity.toFixed(2)"></span></label>
+                                            <input type="range" class="form-range" x-model.number="bgImageOpacity" min="0" max="1" step="0.05" @input="update()" :disabled="!bgImageUrl">
+                                        </div>
+                                        <!-- Background Image Blur Slider -->
+                                        <div class="mb-3">
+                                            <label class="form-label">배경 이미지 블러 <span x-text="bgImageBlur + 'px'"></span></label>
+                                            <input type="range" class="form-range" x-model.number="bgImageBlur" min="0" max="20" step="1" @input="update()" :disabled="!bgImageUrl">
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -155,6 +165,43 @@
                                                 <span class="ms-1" style="font-size:0.9em;">px</span>
                                             </div>
                                         </div>
+                                        <!-- Title Font Style Controls -->
+                                        <div class="row g-2 mb-3">
+                                            <div class="col">
+                                                <label class="form-label">굵기</label>
+                                                <select class="form-select" x-model="titleFontWeight" @change="update()">
+                                                    <option value="normal">Normal</option>
+                                                    <option value="bold">Bold</option>
+                                                </select>
+                                            </div>
+                                            <div class="col">
+                                                <label class="form-label">스타일</label>
+                                                <select class="form-select" x-model="titleFontStyle" @change="update()">
+                                                    <option value="normal">Normal</option>
+                                                    <option value="italic">Italic</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <!-- Title Grid Position Dropdown -->
+                                        <div class="mb-3">
+                                            <label class="form-label">위치 (9 그리드)</label>
+                                            <select class="form-select" x-model="titleGridPosition" @change="update()">
+                                                <option value="tl">Top-Left</option>
+                                                <option value="tc">Top-Center</option>
+                                                <option value="tr">Top-Right</option>
+                                                <option value="ml">Middle-Left</option>
+                                                <option value="mc">Middle-Center</option>
+                                                <option value="mr">Middle-Right</option>
+                                                <option value="bl">Bottom-Left</option>
+                                                <option value="bc">Bottom-Center</option>
+                                                <option value="br">Bottom-Right</option>
+                                            </select>
+                                        </div>
+                                        <!-- Title Line Height Input -->
+                                        <div class="mb-3">
+                                            <label class="form-label">줄간격</label>
+                                            <input type="number" class="form-control" x-model.number="titleLineHeight" @input="update()" min="0.5" max="3" step="0.1">
+                                        </div>
                                         <div class="mb-3">
                                             <label class="form-label">부제목 텍스트</label>
                                             <textarea class="form-control" x-model="subtitleText" @input="update()"></textarea>
@@ -170,6 +217,43 @@
                                                     <label class="form-check-label" for="subtitleVisibleCheck">부제목 표시</label>
                                                 </div>
                                             </div>
+                                        </div>
+                                        <!-- Subtitle Font Style Controls -->
+                                        <div class="row g-2 mb-3">
+                                            <div class="col">
+                                                <label class="form-label">굵기</label>
+                                                <select class="form-select" x-model="subtitleFontWeight" @change="update()">
+                                                    <option value="normal">Normal</option>
+                                                    <option value="bold">Bold</option>
+                                                </select>
+                                            </div>
+                                            <div class="col">
+                                                <label class="form-label">스타일</label>
+                                                <select class="form-select" x-model="subtitleFontStyle" @change="update()">
+                                                    <option value="normal">Normal</option>
+                                                    <option value="italic">Italic</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <!-- Subtitle Grid Position Dropdown -->
+                                        <div class="mb-3">
+                                            <label class="form-label">위치 (9 그리드)</label>
+                                            <select class="form-select" x-model="subtitleGridPosition" @change="update()">
+                                                <option value="tl">Top-Left</option>
+                                                <option value="tc">Top-Center</option>
+                                                <option value="tr">Top-Right</option>
+                                                <option value="ml">Middle-Left</option>
+                                                <option value="mc">Middle-Center</option>
+                                                <option value="mr">Middle-Right</option>
+                                                <option value="bl">Bottom-Left</option>
+                                                <option value="bc">Bottom-Center</option>
+                                                <option value="br">Bottom-Right</option>
+                                            </select>
+                                        </div>
+                                        <!-- Subtitle Line Height Input -->
+                                        <div class="mb-3">
+                                            <label class="form-label">줄간격</label>
+                                            <input type="number" class="form-control" x-model.number="subtitleLineHeight" @input="update()" min="0.5" max="3" step="0.1">
                                         </div>
                                     </div>
                                 </div>
@@ -216,6 +300,18 @@
                 subtitleText: '쉽고 빠르게 썸네일을 만드는 법\n= 퀵썸네일 쓰기',
                 subtitleColor: '#ffffff',
                 subtitleVisible: true,
+                titleFontWeight: 'bold',
+                titleFontStyle: 'normal',
+                titleTextAlign: 'left',
+                titleLineHeight: 1.1,
+                subtitleFontWeight: 'normal',
+                subtitleFontStyle: 'normal',
+                subtitleTextAlign: 'left',
+                subtitleLineHeight: 1.1,
+                bgImageOpacity: 1.0,
+                bgImageBlur: 0,
+                titleGridPosition: 'tl',
+                subtitleGridPosition: 'bl',
                 dsl: '',
                 dslObj: null,
                 bgImageObj: null,
@@ -269,7 +365,9 @@
                     // 배경 설정
                     const bg = this.bgImageUrl ? {
                         type: 'image',
-                        imagePath: this.bgImageUrl
+                        imagePath: this.bgImageUrl,
+                        imageOpacity: this.bgImageOpacity,
+                        imageBlur: this.bgImageBlur
                     } : {
                         type: 'solid',
                         color: this.bgColor
@@ -281,16 +379,16 @@
                         {
                             type: 'title',
                             content: this.titleText,
-                            position: {
-                                vertical: 'top',
-                                horizontal: 'left'
-                            },
+                            gridPosition: this.titleGridPosition,
                             font: {
                                 name: this.fontFamily,
                                 faces: this.fontFaces
                             },
                             fontSize: 48,
                             color: this.titleColor,
+                            fontWeight: this.titleFontWeight,
+                            fontStyle: this.titleFontStyle,
+                            lineHeight: this.titleLineHeight,
                             outline: this.titleOutline ? {
                                 thickness: this.titleOutlineThickness,
                                 color: '#000'
@@ -304,16 +402,16 @@
                         texts.push({
                             type: 'subtitle',
                             content: this.subtitleText,
-                            position: {
-                                vertical: 'bottom',
-                                horizontal: 'left'
-                            },
+                            gridPosition: this.subtitleGridPosition,
                             font: {
                                 name: this.fontFamily,
                                 faces: this.fontFaces
                             },
                             fontSize: 24,
                             color: this.subtitleColor,
+                            fontWeight: this.subtitleFontWeight,
+                            fontStyle: this.subtitleFontStyle,
+                            lineHeight: this.subtitleLineHeight,
                             outline: null,
                             enabled: true
                         });
