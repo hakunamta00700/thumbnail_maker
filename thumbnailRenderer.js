@@ -80,13 +80,8 @@
   }
 
   // 텍스트 한 줄의 스타일 문자열을 생성하는 헬퍼 함수
-  function buildTextDivStyle({ x, y, fontFamily, fontSize, fontWeight, fontStyle, color, textAlign, lineHeight, outline }) {
-    let style = `position:absolute; top:${y}px; left:${x}px; font-family:'${fontFamily}'; font-size:${fontSize}px; font-weight:${fontWeight || 'normal'}; font-style:${fontStyle || 'normal'}; color:${color}; line-height:${lineHeight || LINE_HEIGHT}; white-space:pre; text-align:${textAlign || 'left'};`;
-    if (textAlign === 'center') {
-      style += `transform:translateX(-50%);`;
-    } else if (textAlign === 'right') {
-      style += `transform:translateX(-100%);`;
-    }
+  function buildTextDivStyle({ fontFamily, fontSize, fontWeight, fontStyle, color, effectiveTextAlign, lineHeight, outline }) {
+    let style = `font-family:'${fontFamily}'; font-size:${fontSize}px; font-weight:${fontWeight || 'normal'}; font-style:${fontStyle || 'normal'}; color:${color}; line-height:${lineHeight || LINE_HEIGHT}; white-space:pre; text-align:${effectiveTextAlign || 'left'};`;
     // outline은 text-shadow로 구현
     if (outline && outline.color && outline.thickness > 0) {
       style += ` text-shadow:${buildOutlineCss(outline.color, outline.thickness)};`;
@@ -137,37 +132,65 @@
         const lines = splitLines(txt.content);
         const fontSize = txt.fontSize;
         const fontFamily = txt.font.name;
-        // fontWeight는 DSL에서 직접 받아옴, 기본값 'normal'
-        // const fontWeight = txt.type === 'title' ? 'bold' : 'normal'; // 기존 로직 제거
         const currentLineHeight = txt.lineHeight || LINE_HEIGHT;
-        const lineHeightPx = fontSize * currentLineHeight;
-        const currentTextAlign = txt.textAlign || 'left';
+        // const lineHeightPx = fontSize * currentLineHeight; // Not directly used here for y positioning of block
 
-        let y = txt.position.vertical === 'top' ? M
-          : txt.position.vertical === 'middle' ? (txt._h - lines.length * lineHeightPx) / 2 // _h 사용
-            : txt._h - lines.length * lineHeightPx - M; // _h 사용
+        const gridPosition = txt.gridPosition || 'tl'; // Default to top-left
+        const row = gridPosition[0]; // t, m, b
+        const col = gridPosition[1]; // l, c, r
 
+        let blockStyle = 'position: absolute;';
+        let effectiveTextAlign = 'left';
+
+        // Determine block horizontal position and text-align
+        if (col === 'l') {
+          blockStyle += `left: ${M}px;`;
+          effectiveTextAlign = 'left';
+        } else if (col === 'c') {
+          blockStyle += `left: 50%;`; // translateX will be added
+          effectiveTextAlign = 'center';
+        } else { // col === 'r'
+          blockStyle += `right: ${M}px;`;
+          effectiveTextAlign = 'right';
+        }
+
+        // Determine block vertical position
+        if (row === 't') {
+          blockStyle += `top: ${M}px;`;
+        } else if (row === 'm') {
+          blockStyle += `top: 50%;`; // translateY will be added
+        } else { // row === 'b'
+          blockStyle += `bottom: ${M}px;`;
+        }
+        
+        // Add transforms for centering
+        let transformValue = '';
+        if (row === 'm' && col === 'c') {
+            transformValue = 'translate(-50%, -50%)';
+        } else if (row === 'm') {
+            transformValue = 'translateY(-50%)';
+        } else if (col === 'c') {
+            transformValue = 'translateX(-50%)';
+        }
+        if (transformValue) {
+            blockStyle += `transform: ${transformValue};`;
+        }
+        
+        html += `<div style="${blockStyle}">`;
         lines.forEach(line => {
-          // x 좌표 계산: DSL의 textAlign 속성 사용
-          let x = currentTextAlign === 'left' ? M
-            : currentTextAlign === 'center' ? txt._w / 2 // _w 사용
-              : txt._w - M; // _w 사용
-
-          const style = buildTextDivStyle({
-            x,
-            y,
-            fontFamily: fontFamily, // 변경: font -> fontFamily
+          const lineStyle = buildTextDivStyle({
+            fontFamily: fontFamily,
             fontSize,
-            fontWeight: txt.fontWeight, // DSL에서 직접 전달
-            fontStyle: txt.fontStyle,   // DSL에서 직접 전달
+            fontWeight: txt.fontWeight,
+            fontStyle: txt.fontStyle,
             color: txt.color,
-            textAlign: currentTextAlign, // 변경: align -> textAlign
-            lineHeight: currentLineHeight, // DSL에서 직접 전달
+            effectiveTextAlign: effectiveTextAlign,
+            lineHeight: currentLineHeight,
             outline: txt.outline
           });
-          html += `<div style="${style}">${line}</div>`;
-          y += lineHeightPx;
+          html += `<div style="${lineStyle}">${line}</div>`;
         });
+        html += `</div>`;
       });
       return html;
     }
@@ -278,47 +301,60 @@ ${fontCss}
         if (txt.outline && (!txt.outline.thickness || isNaN(txt.outline.thickness))) txt.outline.thickness = DEFAULT_OUTLINE_THICKNESS;
         const lines = splitLines(txt.content);
         const size = txt.fontSize;
-        // fontWeight, fontStyle, textAlign, lineHeight는 DSL에서 직접 받아옴
         const currentFontWeight = txt.fontWeight || 'normal';
         const currentFontStyle = txt.fontStyle || 'normal';
-        const currentTextAlign = txt.textAlign || 'left';
+        // textAlign is now derived from gridPosition
         const currentLineHeight = txt.lineHeight || LINE_HEIGHT;
 
         ctx.font = `${currentFontStyle} ${currentFontWeight} ${size}px ${txt.font.name}`;
-        ctx.textAlign = currentTextAlign;
-        ctx.textBaseline = 'top';
+        ctx.textBaseline = 'top'; // Set for all cases
 
         if (txt.outline && txt.outline.color && txt.outline.thickness > 0) {
              ctx.lineWidth = txt.outline.thickness;
              ctx.strokeStyle = txt.outline.color;
         } else {
-            // Ensure outline is not applied if not specified or thickness is 0
             ctx.lineWidth = 0;
             ctx.strokeStyle = 'transparent';
         }
 
         const lh = size * currentLineHeight;
-        let y = txt.position.vertical === 'top' ? M
-          : txt.position.vertical === 'middle' ? (h - lines.length * lh) / 2
-            : h - lines.length * lh - M;
+        const totalTextHeight = lines.length * lh;
+        
+        const gridPosition = txt.gridPosition || 'tl'; // Default to top-left
+        const row = gridPosition[0]; // t, m, b
+        const col = gridPosition[1]; // l, c, r
 
-        lines.forEach(line => {
-          // x 좌표 계산: ctx.textAlign을 활용
-          let x;
-          if (currentTextAlign === 'left') {
-            x = M;
-          } else if (currentTextAlign === 'center') {
-            x = w / 2;
-          } else { // right
-            x = w - M;
-          }
+        let targetX;
+        let canvasTextAlign;
 
+        if (col === 'l') {
+          canvasTextAlign = 'left';
+          targetX = M;
+        } else if (col === 'c') {
+          canvasTextAlign = 'center';
+          targetX = w / 2;
+        } else { // col === 'r'
+          canvasTextAlign = 'right';
+          targetX = w - M;
+        }
+        ctx.textAlign = canvasTextAlign;
+
+        let baseY;
+        if (row === 't') {
+          baseY = M;
+        } else if (row === 'm') {
+          baseY = (h / 2) - (totalTextHeight / 2);
+        } else { // row === 'b'
+          baseY = h - M - totalTextHeight;
+        }
+
+        lines.forEach((line, lineIndex) => {
+          const currentY = baseY + (lineIndex * lh);
           if (txt.outline && txt.outline.color && txt.outline.thickness > 0) {
-            ctx.strokeText(line, x, y);
+            ctx.strokeText(line, targetX, currentY);
           }
           ctx.fillStyle = txt.color;
-          ctx.fillText(line, x, y);
-          y += lh;
+          ctx.fillText(line, targetX, currentY);
         });
       });
     }

@@ -182,19 +182,25 @@
                                                 </select>
                                             </div>
                                         </div>
-                                        <div class="row g-2 mb-3">
-                                            <div class="col">
-                                                <label class="form-label">정렬</label>
-                                                <select class="form-select" x-model="titleTextAlign" @change="update()">
-                                                    <option value="left">Left</option>
-                                                    <option value="center">Center</option>
-                                                    <option value="right">Right</option>
-                                                </select>
-                                            </div>
-                                            <div class="col">
-                                                <label class="form-label">줄간격</label>
-                                                <input type="number" class="form-control" x-model.number="titleLineHeight" @input="update()" min="0.5" max="3" step="0.1">
-                                            </div>
+                                        <!-- Title Grid Position Dropdown -->
+                                        <div class="mb-3">
+                                            <label class="form-label">위치 (9 그리드)</label>
+                                            <select class="form-select" x-model="titleGridPosition" @change="update()">
+                                                <option value="tl">Top-Left</option>
+                                                <option value="tc">Top-Center</option>
+                                                <option value="tr">Top-Right</option>
+                                                <option value="ml">Middle-Left</option>
+                                                <option value="mc">Middle-Center</option>
+                                                <option value="mr">Middle-Right</option>
+                                                <option value="bl">Bottom-Left</option>
+                                                <option value="bc">Bottom-Center</option>
+                                                <option value="br">Bottom-Right</option>
+                                            </select>
+                                        </div>
+                                        <!-- Title Line Height Input -->
+                                        <div class="mb-3">
+                                            <label class="form-label">줄간격</label>
+                                            <input type="number" class="form-control" x-model.number="titleLineHeight" @input="update()" min="0.5" max="3" step="0.1">
                                         </div>
                                         <div class="mb-3">
                                             <label class="form-label">부제목 텍스트</label>
@@ -229,19 +235,25 @@
                                                 </select>
                                             </div>
                                         </div>
-                                        <div class="row g-2 mb-3">
-                                            <div class="col">
-                                                <label class="form-label">정렬</label>
-                                                <select class="form-select" x-model="subtitleTextAlign" @change="update()">
-                                                    <option value="left">Left</option>
-                                                    <option value="center">Center</option>
-                                                    <option value="right">Right</option>
-                                                </select>
-                                            </div>
-                                            <div class="col">
-                                                <label class="form-label">줄간격</label>
-                                                <input type="number" class="form-control" x-model.number="subtitleLineHeight" @input="update()" min="0.5" max="3" step="0.1">
-                                            </div>
+                                        <!-- Subtitle Grid Position Dropdown -->
+                                        <div class="mb-3">
+                                            <label class="form-label">위치 (9 그리드)</label>
+                                            <select class="form-select" x-model="subtitleGridPosition" @change="update()">
+                                                <option value="tl">Top-Left</option>
+                                                <option value="tc">Top-Center</option>
+                                                <option value="tr">Top-Right</option>
+                                                <option value="ml">Middle-Left</option>
+                                                <option value="mc">Middle-Center</option>
+                                                <option value="mr">Middle-Right</option>
+                                                <option value="bl">Bottom-Left</option>
+                                                <option value="bc">Bottom-Center</option>
+                                                <option value="br">Bottom-Right</option>
+                                            </select>
+                                        </div>
+                                        <!-- Subtitle Line Height Input -->
+                                        <div class="mb-3">
+                                            <label class="form-label">줄간격</label>
+                                            <input type="number" class="form-control" x-model.number="subtitleLineHeight" @input="update()" min="0.5" max="3" step="0.1">
                                         </div>
                                     </div>
                                 </div>
@@ -298,6 +310,8 @@
                 subtitleLineHeight: 1.1,
                 bgImageOpacity: 1.0,
                 bgImageBlur: 0,
+                titleGridPosition: 'tl',
+                subtitleGridPosition: 'bl',
                 dsl: '',
                 dslObj: null,
                 bgImageObj: null,
@@ -365,10 +379,7 @@
                         {
                             type: 'title',
                             content: this.titleText,
-                            position: {
-                                vertical: 'top',
-                                horizontal: 'left'
-                            },
+                            gridPosition: this.titleGridPosition,
                             font: {
                                 name: this.fontFamily,
                                 faces: this.fontFaces
@@ -377,7 +388,6 @@
                             color: this.titleColor,
                             fontWeight: this.titleFontWeight,
                             fontStyle: this.titleFontStyle,
-                            textAlign: this.titleTextAlign,
                             lineHeight: this.titleLineHeight,
                             outline: this.titleOutline ? {
                                 thickness: this.titleOutlineThickness,
@@ -392,10 +402,7 @@
                         texts.push({
                             type: 'subtitle',
                             content: this.subtitleText,
-                            position: {
-                                vertical: 'bottom',
-                                horizontal: 'left'
-                            },
+                            gridPosition: this.subtitleGridPosition,
                             font: {
                                 name: this.fontFamily,
                                 faces: this.fontFaces
@@ -404,7 +411,6 @@
                             color: this.subtitleColor,
                             fontWeight: this.subtitleFontWeight,
                             fontStyle: this.subtitleFontStyle,
-                            textAlign: this.subtitleTextAlign,
                             lineHeight: this.subtitleLineHeight,
                             outline: null,
                             enabled: true
