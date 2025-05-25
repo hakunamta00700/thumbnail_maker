@@ -392,9 +392,27 @@
                     // drawOnCanvas가 비동기이므로 await 호출
                     await window.thumbnailRenderer.ThumbnailRenderer.drawOnCanvas(ctx, this.dslObj);
                 },
-                update() {
+                async update() {
                     this.dsl = this.generateDSL();
                     this.dslObj = JSON.parse(this.dsl);
+
+                    if (this.fontFamily && typeof document !== 'undefined' && document.fonts) { // Check for document.fonts support
+                        try {
+                            const fontString = `12px "${this.fontFamily}"`; // Use a common size for checking
+                            // console.log('Currently selected font:', this.fontFamily); // Debugging
+                            if (!document.fonts.check(fontString)) {
+                                // console.log(`Font "${this.fontFamily}" not immediately ready, attempting to load...`);
+                                await document.fonts.load(fontString);
+                                // console.log(`Font "${this.fontFamily}" loaded successfully.`);
+                            } else {
+                                // console.log(`Font "${this.fontFamily}" is already loaded/available.`);
+                            }
+                        } catch (error) {
+                            console.error(`Error loading font "${this.fontFamily}":`, error);
+                            // Optionally, handle the error, e.g., by selecting a default font or showing a message
+                            // For now, we'll just log it and proceed, potentially with a fallback font rendered by the browser.
+                        }
+                    }
                     // draw()만 호출 (renderer가 모든 환경에서 이미지 처리)
                     this.draw();
                 },
