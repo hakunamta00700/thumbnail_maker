@@ -155,6 +155,37 @@
                                                 <span class="ms-1" style="font-size:0.9em;">px</span>
                                             </div>
                                         </div>
+                                        <!-- Title Font Style Controls -->
+                                        <div class="row g-2 mb-3">
+                                            <div class="col">
+                                                <label class="form-label">굵기</label>
+                                                <select class="form-select" x-model="titleFontWeight" @change="update()">
+                                                    <option value="normal">Normal</option>
+                                                    <option value="bold">Bold</option>
+                                                </select>
+                                            </div>
+                                            <div class="col">
+                                                <label class="form-label">스타일</label>
+                                                <select class="form-select" x-model="titleFontStyle" @change="update()">
+                                                    <option value="normal">Normal</option>
+                                                    <option value="italic">Italic</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="row g-2 mb-3">
+                                            <div class="col">
+                                                <label class="form-label">정렬</label>
+                                                <select class="form-select" x-model="titleTextAlign" @change="update()">
+                                                    <option value="left">Left</option>
+                                                    <option value="center">Center</option>
+                                                    <option value="right">Right</option>
+                                                </select>
+                                            </div>
+                                            <div class="col">
+                                                <label class="form-label">줄간격</label>
+                                                <input type="number" class="form-control" x-model.number="titleLineHeight" @input="update()" min="0.5" max="3" step="0.1">
+                                            </div>
+                                        </div>
                                         <div class="mb-3">
                                             <label class="form-label">부제목 텍스트</label>
                                             <textarea class="form-control" x-model="subtitleText" @input="update()"></textarea>
@@ -169,6 +200,37 @@
                                                     <input class="form-check-input" type="checkbox" x-model="subtitleVisible" @change="update()" id="subtitleVisibleCheck">
                                                     <label class="form-check-label" for="subtitleVisibleCheck">부제목 표시</label>
                                                 </div>
+                                            </div>
+                                        </div>
+                                        <!-- Subtitle Font Style Controls -->
+                                        <div class="row g-2 mb-3">
+                                            <div class="col">
+                                                <label class="form-label">굵기</label>
+                                                <select class="form-select" x-model="subtitleFontWeight" @change="update()">
+                                                    <option value="normal">Normal</option>
+                                                    <option value="bold">Bold</option>
+                                                </select>
+                                            </div>
+                                            <div class="col">
+                                                <label class="form-label">스타일</label>
+                                                <select class="form-select" x-model="subtitleFontStyle" @change="update()">
+                                                    <option value="normal">Normal</option>
+                                                    <option value="italic">Italic</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="row g-2 mb-3">
+                                            <div class="col">
+                                                <label class="form-label">정렬</label>
+                                                <select class="form-select" x-model="subtitleTextAlign" @change="update()">
+                                                    <option value="left">Left</option>
+                                                    <option value="center">Center</option>
+                                                    <option value="right">Right</option>
+                                                </select>
+                                            </div>
+                                            <div class="col">
+                                                <label class="form-label">줄간격</label>
+                                                <input type="number" class="form-control" x-model.number="subtitleLineHeight" @input="update()" min="0.5" max="3" step="0.1">
                                             </div>
                                         </div>
                                     </div>
@@ -216,6 +278,14 @@
                 subtitleText: '쉽고 빠르게 썸네일을 만드는 법\n= 퀵썸네일 쓰기',
                 subtitleColor: '#ffffff',
                 subtitleVisible: true,
+                titleFontWeight: 'bold',
+                titleFontStyle: 'normal',
+                titleTextAlign: 'left',
+                titleLineHeight: 1.1,
+                subtitleFontWeight: 'normal',
+                subtitleFontStyle: 'normal',
+                subtitleTextAlign: 'left',
+                subtitleLineHeight: 1.1,
                 dsl: '',
                 dslObj: null,
                 bgImageObj: null,
@@ -291,6 +361,10 @@
                             },
                             fontSize: 48,
                             color: this.titleColor,
+                            fontWeight: this.titleFontWeight,
+                            fontStyle: this.titleFontStyle,
+                            textAlign: this.titleTextAlign,
+                            lineHeight: this.titleLineHeight,
                             outline: this.titleOutline ? {
                                 thickness: this.titleOutlineThickness,
                                 color: '#000'
@@ -314,6 +388,10 @@
                             },
                             fontSize: 24,
                             color: this.subtitleColor,
+                            fontWeight: this.subtitleFontWeight,
+                            fontStyle: this.subtitleFontStyle,
+                            textAlign: this.subtitleTextAlign,
+                            lineHeight: this.subtitleLineHeight,
                             outline: null,
                             enabled: true
                         });

@@ -80,16 +80,15 @@
   }
 
   // 텍스트 한 줄의 스타일 문자열을 생성하는 헬퍼 함수
-  function buildTextDivStyle({ x, y, font, fontSize, weight, color, align, outline }) {
-    let style = `position:absolute; top:${y}px; font-family:'${font}'; font-size:${fontSize}px; font-weight:${weight}; color:${color}; line-height:${LINE_HEIGHT}; white-space:pre;`;
-    if (align === 'center') {
-      style += ` left:${x}px; transform:translateX(-50%); text-align:center;`;
-    } else if (align === 'right') {
-      style += ` left:${x}px; transform:translateX(-100%); text-align:right;`;
-    } else {
-      style += ` left:${x}px; text-align:left;`;
+  function buildTextDivStyle({ x, y, fontFamily, fontSize, fontWeight, fontStyle, color, textAlign, lineHeight, outline }) {
+    let style = `position:absolute; top:${y}px; left:${x}px; font-family:'${fontFamily}'; font-size:${fontSize}px; font-weight:${fontWeight || 'normal'}; font-style:${fontStyle || 'normal'}; color:${color}; line-height:${lineHeight || LINE_HEIGHT}; white-space:pre; text-align:${textAlign || 'left'};`;
+    if (textAlign === 'center') {
+      style += `transform:translateX(-50%);`;
+    } else if (textAlign === 'right') {
+      style += `transform:translateX(-100%);`;
     }
-    if (outline) {
+    // outline은 text-shadow로 구현
+    if (outline && outline.color && outline.thickness > 0) {
       style += ` text-shadow:${buildOutlineCss(outline.color, outline.thickness)};`;
     }
     return style;
@@ -139,24 +138,32 @@
         const lines = splitLines(txt.content);
         const fontSize = txt.fontSize;
         const fontFamily = txt.font.name;
-        const fontWeight = txt.type === 'title' ? 'bold' : 'normal';
-        const lineHeightPx = fontSize * LINE_HEIGHT;
-        const align = txt.position.horizontal || 'left';
+        // fontWeight는 DSL에서 직접 받아옴, 기본값 'normal'
+        // const fontWeight = txt.type === 'title' ? 'bold' : 'normal'; // 기존 로직 제거
+        const currentLineHeight = txt.lineHeight || LINE_HEIGHT;
+        const lineHeightPx = fontSize * currentLineHeight;
+        const currentTextAlign = txt.textAlign || 'left';
+
         let y = txt.position.vertical === 'top' ? M
-          : txt.position.vertical === 'middle' ? (h - lines.length * lineHeightPx) / 2
-            : h - lines.length * lineHeightPx - M;
+          : txt.position.vertical === 'middle' ? (txt._h - lines.length * lineHeightPx) / 2 // _h 사용
+            : txt._h - lines.length * lineHeightPx - M; // _h 사용
+
         lines.forEach(line => {
-          let x = align === 'left' ? M
-            : align === 'center' ? w / 2
-              : w - M;
+          // x 좌표 계산: DSL의 textAlign 속성 사용
+          let x = currentTextAlign === 'left' ? M
+            : currentTextAlign === 'center' ? txt._w / 2 // _w 사용
+              : txt._w - M; // _w 사용
+
           const style = buildTextDivStyle({
             x,
             y,
-            font: fontFamily,
+            fontFamily: fontFamily, // 변경: font -> fontFamily
             fontSize,
-            weight: fontWeight,
+            fontWeight: txt.fontWeight, // DSL에서 직접 전달
+            fontStyle: txt.fontStyle,   // DSL에서 직접 전달
             color: txt.color,
-            align,
+            textAlign: currentTextAlign, // 변경: align -> textAlign
+            lineHeight: currentLineHeight, // DSL에서 직접 전달
             outline: txt.outline
           });
           html += `<div style="${style}">${line}</div>`;
@@ -247,20 +254,44 @@ ${fontCss}
         if (txt.outline && (!txt.outline.thickness || isNaN(txt.outline.thickness))) txt.outline.thickness = DEFAULT_OUTLINE_THICKNESS;
         const lines = splitLines(txt.content);
         const size = txt.fontSize;
-        const weight = txt.type === 'title' ? 'bold' : 'normal';
-        ctx.font = `${weight} ${size}px ${txt.font.name}`;
+        // fontWeight, fontStyle, textAlign, lineHeight는 DSL에서 직접 받아옴
+        const currentFontWeight = txt.fontWeight || 'normal';
+        const currentFontStyle = txt.fontStyle || 'normal';
+        const currentTextAlign = txt.textAlign || 'left';
+        const currentLineHeight = txt.lineHeight || LINE_HEIGHT;
+
+        ctx.font = `${currentFontStyle} ${currentFontWeight} ${size}px ${txt.font.name}`;
+        ctx.textAlign = currentTextAlign;
         ctx.textBaseline = 'top';
-        if (txt.outline) { ctx.lineWidth = txt.outline.thickness; ctx.strokeStyle = txt.outline.color; }
-        const lh = size * LINE_HEIGHT;
+
+        if (txt.outline && txt.outline.color && txt.outline.thickness > 0) {
+             ctx.lineWidth = txt.outline.thickness;
+             ctx.strokeStyle = txt.outline.color;
+        } else {
+            // Ensure outline is not applied if not specified or thickness is 0
+            ctx.lineWidth = 0;
+            ctx.strokeStyle = 'transparent';
+        }
+
+        const lh = size * currentLineHeight;
         let y = txt.position.vertical === 'top' ? M
           : txt.position.vertical === 'middle' ? (h - lines.length * lh) / 2
             : h - lines.length * lh - M;
+
         lines.forEach(line => {
-          const textWidth = ctx.measureText(line).width;
-          let x = txt.position.horizontal === 'left' ? M
-            : txt.position.horizontal === 'center' ? (w - textWidth) / 2
-              : w - textWidth - M;
-          if (txt.outline) ctx.strokeText(line, x, y);
+          // x 좌표 계산: ctx.textAlign을 활용
+          let x;
+          if (currentTextAlign === 'left') {
+            x = M;
+          } else if (currentTextAlign === 'center') {
+            x = w / 2;
+          } else { // right
+            x = w - M;
+          }
+
+          if (txt.outline && txt.outline.color && txt.outline.thickness > 0) {
+            ctx.strokeText(line, x, y);
+          }
           ctx.fillStyle = txt.color;
           ctx.fillText(line, x, y);
           y += lh;
