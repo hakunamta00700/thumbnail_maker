@@ -119,9 +119,8 @@
         ).join(', ');
         return `background: linear-gradient(90deg, ${stops});`;
       } else if (bg.type === 'image') {
-        return `background-image: url('${bg.imagePath}');
-        background-size: cover;
-        background-position: center;`;
+        // Styles for the dedicated background image div
+        return `width:100%; height:100%; background-image: url('${bg.imagePath}'); background-size: cover; background-position: center; opacity: ${typeof bg.imageOpacity === 'number' ? bg.imageOpacity : 1.0}; filter: blur(${bg.imageBlur || 0}px);`;
       }
       return '';
     }
@@ -177,8 +176,16 @@
       const { Resolution, Background, Texts } = dsl.Thumbnail;
       const [w, h] = this.getResolution(Resolution.value);
       const fontCss = this.buildFontCss(Texts);
-      const bgStyle = this.buildBackgroundStyle(Background);
+      const bgStyle = this.buildBackgroundStyle(Background); // This now returns specific styles based on type
       const textHtml = this.buildTextLayers(Texts.map(t => ({ ...t, _w: w, _h: h })));
+
+      let bgImageHtml = '';
+      if (Background.type === 'image') {
+        bgImageHtml = `
+    <div id="thumb-bg-image-container" style="position:absolute; top:0; left:0; width:100%; height:100%; z-index:0;">
+      <div id="thumb-bg-image" style="${bgStyle}"></div>
+    </div>`;
+      }
 
       return `<!DOCTYPE html>
 <html>
@@ -192,13 +199,18 @@ ${fontCss}
       width: ${w}px;
       height: ${h}px;
       overflow: hidden;
-      ${bgStyle}
+      ${Background.type !== 'image' ? bgStyle : ''}
     }
-    #thumb div { display: block; }
+    /* Text layers will be direct children of #thumb or within a container that is a direct child.
+       If they are direct children, they will stack on top of #thumb-bg-image-container due to z-index:0 on the container.
+       If text layers are wrapped, ensure that wrapper also has a z-index or is positioned.
+       The current buildTextLayers creates divs that are direct children, so this should be fine. */
+    #thumb div { display: block; } /* This might need adjustment if text layers need explicit stacking context */
   </style>
 </head>
 <body>
   <div id="thumb">
+    ${bgImageHtml}
     ${textHtml}
   </div>
 </body>
@@ -234,10 +246,22 @@ ${fontCss}
             sx = 0;
             sy = (ih - sh) / 2;
           }
+          const originalAlpha = ctx.globalAlpha;
+          const originalFilter = ctx.filter;
+          ctx.globalAlpha = typeof Background.imageOpacity === 'number' ? Background.imageOpacity : 1.0;
+          ctx.filter = Background.imageBlur ? `blur(${Background.imageBlur}px)` : 'none';
+          
           ctx.drawImage(img, sx, sy, sw, sh, 0, 0, w, h);
+          
+          ctx.globalAlpha = originalAlpha;
+          ctx.filter = originalFilter;
         } catch (e) {
-          ctx.fillStyle = '#ccc';
+          console.error("Error loading or drawing background image:", e);
+          ctx.fillStyle = '#ccc'; // Fallback color
           ctx.fillRect(0, 0, w, h);
+          // Ensure context is reset even if image loading fails and we draw fallback
+          if (typeof originalAlpha !== 'undefined') ctx.globalAlpha = originalAlpha;
+          if (typeof originalFilter !== 'undefined') ctx.filter = originalFilter;
         }
       } else if (Background.type === 'gradient') {
         const grad = ctx.createLinearGradient(0, 0, w, 0);

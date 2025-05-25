@@ -99,6 +99,16 @@
                                             <label class="form-label">배경 이미지 URL</label>
                                             <input type="text" class="form-control" x-model="bgImageUrl" @change="update()" placeholder="URL 입력">
                                         </div>
+                                        <!-- Background Image Opacity Slider -->
+                                        <div class="mb-3">
+                                            <label class="form-label">배경 이미지 투명도 <span x-text="bgImageOpacity.toFixed(2)"></span></label>
+                                            <input type="range" class="form-range" x-model.number="bgImageOpacity" min="0" max="1" step="0.05" @input="update()" :disabled="!bgImageUrl">
+                                        </div>
+                                        <!-- Background Image Blur Slider -->
+                                        <div class="mb-3">
+                                            <label class="form-label">배경 이미지 블러 <span x-text="bgImageBlur + 'px'"></span></label>
+                                            <input type="range" class="form-range" x-model.number="bgImageBlur" min="0" max="20" step="1" @input="update()" :disabled="!bgImageUrl">
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -286,6 +296,8 @@
                 subtitleFontStyle: 'normal',
                 subtitleTextAlign: 'left',
                 subtitleLineHeight: 1.1,
+                bgImageOpacity: 1.0,
+                bgImageBlur: 0,
                 dsl: '',
                 dslObj: null,
                 bgImageObj: null,
@@ -339,7 +351,9 @@
                     // 배경 설정
                     const bg = this.bgImageUrl ? {
                         type: 'image',
-                        imagePath: this.bgImageUrl
+                        imagePath: this.bgImageUrl,
+                        imageOpacity: this.bgImageOpacity,
+                        imageBlur: this.bgImageBlur
                     } : {
                         type: 'solid',
                         color: this.bgColor
