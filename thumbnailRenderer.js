@@ -218,7 +218,7 @@
         } else { // row === 'b'
           blockStyle += `bottom: ${M}px;`;
         }
-        
+
         // Add transforms for centering
         let transformValue = '';
         if (row === 'm' && col === 'c') {
@@ -231,7 +231,7 @@
         if (transformValue) {
             blockStyle += `transform: ${transformValue};`;
         }
-        
+
         html += `<div style="${blockStyle}">`;
         lines.forEach(line => {
           const lineStyle = buildTextDivStyle({
@@ -329,9 +329,9 @@ ${fontCss}
           const originalFilter = ctx.filter;
           ctx.globalAlpha = typeof Background.imageOpacity === 'number' ? Background.imageOpacity : 1.0;
           ctx.filter = Background.imageBlur ? `blur(${Background.imageBlur}px)` : 'none';
-          
+
           ctx.drawImage(img, sx, sy, sw, sh, 0, 0, w, h);
-          
+
           ctx.globalAlpha = originalAlpha;
           ctx.filter = originalFilter;
         } catch (e) {
@@ -375,7 +375,7 @@ ${fontCss}
 
         const lh = size * currentLineHeight;
         const totalTextHeight = lines.length * lh;
-        
+
         const gridPosition = txt.gridPosition || 'tl'; // Default to top-left
         const row = gridPosition[0]; // t, m, b
         const col = gridPosition[1]; // l, c, r
