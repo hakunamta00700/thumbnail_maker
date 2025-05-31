@@ -69,7 +69,7 @@
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-center mb-2">
                             <h3 class="h5 mb-0">설정</h3>
-                            <button class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#dslModal">DSL
+                            <button class="btn btn-outline-primary btn-sm" @click="prepareEditableDsl()" data-bs-toggle="modal" data-bs-target="#dslModal">DSL
                 보기</button>
                         </div>
                         <div class="accordion" id="settingsAccordion">
@@ -331,7 +331,11 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <textarea class="form-control" readonly x-text="dsl" style="min-height:300px"></textarea>
+                    <textarea class="form-control" x-model="editableDsl" style="min-height:300px"></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" @click="applyAndCloseDslModal()">Apply & Close</button>
                 </div>
             </div>
         </div>
@@ -377,6 +381,7 @@
                 subtitleFontSize: 24,    // New
                 subtitleOutline: false,  // New
                 subtitleOutlineThickness: 5, // New
+                editableDsl: '', // New
                 dsl: '',
                 dslObj: null,
                 bgImageObj: null,
@@ -391,6 +396,130 @@
                     this.fontFamily = this.fontFaces[0].name;
                     this.subtitleFontFamily = this.fontFamily; // Initialize subtitle font
                     this.update();
+                },
+                prepareEditableDsl() {
+                    this.editableDsl = this.dsl; // Copy current DSL to the editable model
+                },
+                applyAndCloseDslModal() {
+                    this.applyImportedDsl();
+                    // Assuming Bootstrap 5 modal instance management
+                    const dslModalElement = document.getElementById('dslModal');
+                    if (dslModalElement) {
+                        const modalInstance = bootstrap.Modal.getInstance(dslModalElement);
+                        if (modalInstance) {
+                            modalInstance.hide();
+                        }
+                    }
+                },
+                applyImportedDsl() {
+                    let importedDslObj;
+                    try {
+                        importedDslObj = JSON.parse(this.editableDsl);
+                    } catch (e) {
+                        alert('Error: Invalid JSON format in DSL input.');
+                        console.error('DSL Parsing Error:', e);
+                        return;
+                    }
+
+                    if (!importedDslObj || !importedDslObj.Thumbnail) {
+                        alert('Error: Invalid DSL structure. Missing "Thumbnail" root object.');
+                        return;
+                    }
+
+                    const thumb = importedDslObj.Thumbnail;
+
+                    // Update Resolution
+                    if (thumb.Resolution) {
+                        const res = thumb.Resolution;
+                        this.resolutionMode = res.type || 'preset';
+                        if (res.type === 'preset') {
+                            this.currentAspectRatio = res.value || '16:9';
+                            // this.updateDimensionsFromPreset(); // Call this later after all properties potentially affecting it are set
+                        } else if (res.type === 'custom') {
+                            this.inputWidth = parseInt(res.width, 10) || 480;
+                            this.inputHeight = parseInt(res.height, 10) || 270;
+                        } else if (res.type === 'fixedRatio') {
+                            this.currentAspectRatio = res.ratioValue || '16:9';
+                            this.inputWidth = parseInt(res.width, 10); // Will be NaN if undefined, handled later
+                            this.inputHeight = parseInt(res.height, 10); // Will be NaN if undefined, handled later
+                            if (res.width != null && res.height == null) {
+                                this.fixedRatioDrivingInput = 'width';
+                            } else if (res.height != null && res.width == null) {
+                                this.fixedRatioDrivingInput = 'height';
+                            } else {
+                                this.fixedRatioDrivingInput = 'width';
+                            }
+                        }
+                    }
+
+                    // Update Background
+                    if (thumb.Background) {
+                        const bg = thumb.Background;
+                        if (bg.type === 'solid') {
+                            this.bgColor = bg.color || '#ffffff';
+                            this.bgImageUrl = '';
+                        } else if (bg.type === 'image') {
+                            this.bgImageUrl = bg.imagePath || '';
+                            this.bgColor = '#ffffff';
+                            this.bgImageOpacity = (typeof bg.imageOpacity === 'number') ? bg.imageOpacity : 1.0;
+                            this.bgImageBlur = parseInt(bg.imageBlur, 10) || 0;
+                        }
+                    }
+
+                    const defaultTextProps = {
+                        content: '', color: '#000000', fontSize: 48, gridPosition: 'tl',
+                        fontWeight: 'normal', fontStyle: 'normal', lineHeight: 1.1,
+                        outline: false, outlineThickness: 3, fontFamily: this.fontFamily
+                    };
+
+                    const titleDsl = thumb.Texts && thumb.Texts.find(t => t.type === 'title');
+                    if (titleDsl) {
+                        this.titleText = titleDsl.content || defaultTextProps.content;
+                        this.fontFamily = titleDsl.font ? (titleDsl.font.name || this.fontFamily) : this.fontFamily;
+                        this.titleColor = titleDsl.color || defaultTextProps.color;
+                        this.titleGridPosition = titleDsl.gridPosition || defaultTextProps.gridPosition;
+                        this.titleFontWeight = titleDsl.fontWeight || defaultTextProps.fontWeight;
+                        this.titleFontStyle = titleDsl.fontStyle || defaultTextProps.fontStyle;
+                        this.titleLineHeight = titleDsl.lineHeight || defaultTextProps.lineHeight;
+                        this.titleOutline = !!titleDsl.outline;
+                        this.titleOutlineThickness = titleDsl.outline ? (titleDsl.outline.thickness || defaultTextProps.outlineThickness) : defaultTextProps.outlineThickness;
+                    } else {
+                        this.titleText = defaultTextProps.content; this.titleColor = defaultTextProps.color;
+                        this.fontFamily = defaultTextProps.fontFamily; this.titleGridPosition = defaultTextProps.gridPosition;
+                        this.titleFontWeight = defaultTextProps.fontWeight; this.titleFontStyle = defaultTextProps.fontStyle;
+                        this.titleLineHeight = defaultTextProps.lineHeight; this.titleOutline = defaultTextProps.outline;
+                        this.titleOutlineThickness = defaultTextProps.outlineThickness;
+                    }
+
+                    const subtitleDsl = thumb.Texts && thumb.Texts.find(t => t.type === 'subtitle');
+                    this.subtitleVisible = !!subtitleDsl && (subtitleDsl.enabled !== false);
+                    if (subtitleDsl && this.subtitleVisible) {
+                        this.subtitleText = subtitleDsl.content || defaultTextProps.content;
+                        this.subtitleFontFamily = subtitleDsl.font ? (subtitleDsl.font.name || this.subtitleFontFamily) : this.subtitleFontFamily;
+                        this.subtitleFontSize = subtitleDsl.fontSize || 24;
+                        this.subtitleColor = subtitleDsl.color || defaultTextProps.color;
+                        this.subtitleGridPosition = subtitleDsl.gridPosition || 'bl';
+                        this.subtitleFontWeight = subtitleDsl.fontWeight || defaultTextProps.fontWeight;
+                        this.subtitleFontStyle = subtitleDsl.fontStyle || defaultTextProps.fontStyle;
+                        this.subtitleLineHeight = subtitleDsl.lineHeight || defaultTextProps.lineHeight;
+                        this.subtitleOutline = !!subtitleDsl.outline;
+                        this.subtitleOutlineThickness = subtitleDsl.outline ? (subtitleDsl.outline.thickness || defaultTextProps.outlineThickness) : defaultTextProps.outlineThickness;
+                    } else {
+                        this.subtitleText = defaultTextProps.content; this.subtitleFontFamily = this.fontFamily;
+                        this.subtitleFontSize = 24; this.subtitleColor = defaultTextProps.color;
+                        this.subtitleGridPosition = 'bl'; this.subtitleFontWeight = defaultTextProps.fontWeight;
+                        this.subtitleFontStyle = defaultTextProps.fontStyle; this.subtitleLineHeight = defaultTextProps.lineHeight;
+                        this.subtitleOutline = defaultTextProps.outline; this.subtitleOutlineThickness = defaultTextProps.outlineThickness;
+                    }
+
+                    if (this.resolutionMode === 'preset') {
+                        this.updateDimensionsFromPreset();
+                    } else if (this.resolutionMode === 'fixedRatio') {
+                        this.recalculateFixedDimensions();
+                        this.update();
+                    } else {
+                        this.update();
+                    }
                 },
                 parseAndAddFontFace() {
                     const css = this.newFontCss;
