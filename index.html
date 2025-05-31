@@ -249,6 +249,31 @@
                                                 </div>
                                             </div>
                                         </div>
+                                        <!-- Subtitle Font Family Dropdown -->
+                                        <div class="mb-3">
+                                            <label class="form-label">폰트</label>
+                                            <select class="form-select" x-model="subtitleFontFamily" @change="update()">
+                                                <template x-for="f in fontFaces" :key="f.name">
+                                                    <option x-text="f.name" :value="f.name"></option>
+                                                </template>
+                                            </select>
+                                        </div>
+                                        <!-- Subtitle Font Size Input -->
+                                        <div class="mb-3">
+                                            <label class="form-label">폰트 크기</label>
+                                            <input type="number" class="form-control" x-model.number="subtitleFontSize" @input="update()" min="8" max="100">
+                                        </div>
+                                        <!-- Subtitle Outline Controls -->
+                                        <div class="row g-2 mb-3">
+                                            <div class="col d-flex align-items-center">
+                                                <input class="form-check-input" type="checkbox" x-model="subtitleOutline" @change="update()" id="subtitleOutlineCheck">
+                                                <label class="form-check-label ms-2" for="subtitleOutlineCheck">외곽선</label>
+                                            </div>
+                                            <div class="col d-flex align-items-center">
+                                                <input type="number" min="1" max="20" class="form-control ms-2" style="width:70px" x-model.number="subtitleOutlineThickness" :disabled="!subtitleOutline" @input="update()">
+                                                <span class="ms-1" style="font-size:0.9em;">px</span>
+                                            </div>
+                                        </div>
                                         <!-- Subtitle Font Style Controls -->
                                         <div class="row g-2 mb-3">
                                             <div class="col">
@@ -348,6 +373,10 @@
                 fixedRatioDrivingInput: 'width', // Or null
                 titleGridPosition: 'tl',
                 subtitleGridPosition: 'bl',
+                subtitleFontFamily: '', // New
+                subtitleFontSize: 24,    // New
+                subtitleOutline: false,  // New
+                subtitleOutlineThickness: 5, // New
                 dsl: '',
                 dslObj: null,
                 bgImageObj: null,
@@ -360,6 +389,7 @@
                         style: 'normal'
                     }];
                     this.fontFamily = this.fontFaces[0].name;
+                    this.subtitleFontFamily = this.fontFamily; // Initialize subtitle font
                     this.update();
                 },
                 parseAndAddFontFace() {
@@ -520,15 +550,15 @@
                             content: this.subtitleText,
                             gridPosition: this.subtitleGridPosition,
                             font: {
-                                name: this.fontFamily,
+                                name: this.subtitleFontFamily, // Changed
                                 faces: this.fontFaces
                             },
-                            fontSize: 24,
+                            fontSize: this.subtitleFontSize, // Changed
                             color: this.subtitleColor,
                             fontWeight: this.subtitleFontWeight,
                             fontStyle: this.subtitleFontStyle,
                             lineHeight: this.subtitleLineHeight,
-                            outline: null,
+                            outline: this.subtitleOutline ? { thickness: this.subtitleOutlineThickness, color: '#000' } : null, // Changed
                             enabled: true
                         });
                     }
