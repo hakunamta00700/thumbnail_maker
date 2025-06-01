@@ -233,6 +233,13 @@
                                             <label class="form-label">줄간격</label>
                                             <input type="number" class="form-control" x-model.number="titleLineHeight" @input="update()" min="0.5" max="3" step="0.1">
                                         </div>
+                                        <!-- Title Word Wrap Checkbox -->
+                                        <div class="form-check mb-3">
+                                            <input class="form-check-input" type="checkbox" x-model="titleWordWrap" @change="update()" id="titleWordWrapCheck">
+                                            <label class="form-check-label" for="titleWordWrapCheck">
+                                                자동 줄바꿈 (Word Wrap)
+                                            </label>
+                                        </div>
                                         <div class="mb-3">
                                             <label class="form-label">부제목 텍스트</label>
                                             <textarea class="form-control" x-model="subtitleText" @input="update()"></textarea>
@@ -311,6 +318,13 @@
                                             <label class="form-label">줄간격</label>
                                             <input type="number" class="form-control" x-model.number="subtitleLineHeight" @input="update()" min="0.5" max="3" step="0.1">
                                         </div>
+                                        <!-- Subtitle Word Wrap Checkbox -->
+                                        <div class="form-check mb-3">
+                                            <input class="form-check-input" type="checkbox" x-model="subtitleWordWrap" @change="update()" id="subtitleWordWrapCheck">
+                                            <label class="form-check-label" for="subtitleWordWrapCheck">
+                                                자동 줄바꿈 (Word Wrap)
+                                            </label>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -381,6 +395,8 @@
                 subtitleFontSize: 24,    // New
                 subtitleOutline: false,  // New
                 subtitleOutlineThickness: 5, // New
+                titleWordWrap: false, // New
+                subtitleWordWrap: false, // New
                 editableDsl: '', // New
                 dsl: '',
                 dslObj: null,
@@ -664,6 +680,7 @@
                             fontWeight: this.titleFontWeight,
                             fontStyle: this.titleFontStyle,
                             lineHeight: this.titleLineHeight,
+                            wordWrap: this.titleWordWrap, // New
                             outline: this.titleOutline ? {
                                 thickness: this.titleOutlineThickness,
                                 color: '#000'
@@ -687,6 +704,7 @@
                             fontWeight: this.subtitleFontWeight,
                             fontStyle: this.subtitleFontStyle,
                             lineHeight: this.subtitleLineHeight,
+                            wordWrap: this.subtitleWordWrap, // New
                             outline: this.subtitleOutline ? { thickness: this.subtitleOutlineThickness, color: '#000' } : null, // Changed
                             enabled: true
                         });
