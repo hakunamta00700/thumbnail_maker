@@ -80,13 +80,45 @@
   }
 
   // 텍스트 한 줄의 스타일 문자열을 생성하는 헬퍼 함수
-  function buildTextDivStyle({ fontFamily, fontSize, fontWeight, fontStyle, color, effectiveTextAlign, lineHeight, outline }) {
-    let style = `font-family:'${fontFamily}'; font-size:${fontSize}px; font-weight:${fontWeight || 'normal'}; font-style:${fontStyle || 'normal'}; color:${color}; line-height:${lineHeight || LINE_HEIGHT}; white-space:pre; text-align:${effectiveTextAlign || 'left'};`;
+  function buildTextDivStyle({ fontFamily, fontSize, fontWeight, fontStyle, color, effectiveTextAlign, lineHeight, outline, wordWrap }) {
+    let style = `font-family:'${fontFamily}'; font-size:${fontSize}px; font-weight:${fontWeight || 'normal'}; font-style:${fontStyle || 'normal'}; color:${color}; line-height:${lineHeight || LINE_HEIGHT}; white-space:${wordWrap ? 'pre-wrap' : 'pre'}; text-align:${effectiveTextAlign || 'left'};`;
+    if (wordWrap) {
+        style += 'overflow-wrap: break-word; word-break: break-word;';
+    }
     // outline은 text-shadow로 구현
     if (outline && outline.color && outline.thickness > 0) {
       style += ` text-shadow:${buildOutlineCss(outline.color, outline.thickness)};`;
     }
     return style;
+  }
+
+  function getWrappedLines(ctx, text, maxWidth, font) {
+      if (text == null || text === '') return ['']; // Handle null or empty string
+      const originalFont = ctx.font; // Save original font
+      ctx.font = font; // Set font for accurate measurement
+
+      const lines = [];
+      const words = text.split(' ');
+      let currentLine = '';
+
+      for (let i = 0; i < words.length; i++) {
+          const word = words[i];
+          const testLine = currentLine === '' ? word : currentLine + ' ' + word;
+          const metrics = ctx.measureText(testLine);
+
+          if (metrics.width > maxWidth && currentLine !== '') {
+              lines.push(currentLine);
+              currentLine = word;
+          } else {
+              currentLine = testLine;
+          }
+      }
+      if (currentLine !== '') {
+          lines.push(currentLine);
+      }
+
+      ctx.font = originalFont; // Restore original font
+      return lines.length > 0 ? lines : ['']; // Ensure at least one empty line if input was empty or only spaces that got trimmed.
   }
 
   class ThumbnailRenderer {
@@ -219,6 +251,9 @@
           blockStyle += `bottom: ${M}px;`;
         }
 
+        // Add width for block container
+        blockStyle += `width: ${txt._w - 2 * M}px;`;
+
         // Add transforms for centering
         let transformValue = '';
         if (row === 'm' && col === 'c') {
@@ -226,8 +261,15 @@
         } else if (row === 'm') {
             transformValue = 'translateY(-50%)';
         } else if (col === 'c') {
+            // For centered column, if not also middle row, only X transform.
+            // The text-align:center handles text, this transform handles block.
+            // However, with explicit width and left:50%, text-align:center is enough.
+            // Revisit: if left:50% and width is set, transform -50% is for the block itself.
             transformValue = 'translateX(-50%)';
         }
+        // If col is 'l' or 'r', no translateX needed as left/right are set with M.
+        // If col is 'c', then left:50% and transform:translateX(-50%) centers the block.
+        // The text-align:center then centers the text *within* that block.
         if (transformValue) {
             blockStyle += `transform: ${transformValue};`;
         }
@@ -242,7 +284,8 @@
             color: txt.color,
             effectiveTextAlign: effectiveTextAlign,
             lineHeight: currentLineHeight,
-            outline: txt.outline
+            outline: txt.outline,
+            wordWrap: txt.wordWrap // Pass wordWrap flag
           });
           html += `<div style="${lineStyle}">${line}</div>`;
         });
@@ -355,15 +398,39 @@ ${fontCss}
         if (!txt.enabled) return;
         // outline thickness 기본값 보정
         if (txt.outline && (!txt.outline.thickness || isNaN(txt.outline.thickness))) txt.outline.thickness = DEFAULT_OUTLINE_THICKNESS;
-        const lines = splitLines(txt.content);
+
+        const initialLines = splitLines(txt.content);
         const size = txt.fontSize;
         const currentFontWeight = txt.fontWeight || 'normal';
         const currentFontStyle = txt.fontStyle || 'normal';
-        // textAlign is now derived from gridPosition
+        const fontName = txt.font.name;
         const currentLineHeight = txt.lineHeight || LINE_HEIGHT;
 
-        ctx.font = `${currentFontStyle} ${currentFontWeight} ${size}px ${txt.font.name}`;
+        ctx.font = `${currentFontStyle} ${currentFontWeight} ${size}px ${fontName}`;
         ctx.textBaseline = 'top'; // Set for all cases
+
+        let processedLines = [];
+        const canvasWidth = w; // Canvas width from getResolution
+        // MARGIN is already defined in the outer scope
+        const effectiveMaxWidth = canvasWidth - 2 * MARGIN;
+        const fullFontString = `${currentFontStyle} ${currentFontWeight} ${size}px ${fontName}`;
+
+        if (txt.wordWrap) {
+            initialLines.forEach(initialLine => {
+                if (initialLine === '') { // Preserve explicitly empty lines
+                    processedLines.push('');
+                } else {
+                    const wrappedSubLines = getWrappedLines(ctx, initialLine, effectiveMaxWidth, fullFontString);
+                    processedLines.push(...wrappedSubLines);
+                }
+            });
+        } else {
+            processedLines = initialLines;
+        }
+        // Ensure processedLines is not empty if initialLines was not, to prevent totalTextHeight issues
+        if (initialLines.length > 0 && processedLines.length === 0) {
+             processedLines.push('');
+        }
 
         if (txt.outline && txt.outline.color && txt.outline.thickness > 0) {
              ctx.lineWidth = txt.outline.thickness;
@@ -374,7 +441,7 @@ ${fontCss}
         }
 
         const lh = size * currentLineHeight;
-        const totalTextHeight = lines.length * lh;
+        const totalTextHeight = processedLines.length * lh; // Use processedLines
 
         const gridPosition = txt.gridPosition || 'tl'; // Default to top-left
         const row = gridPosition[0]; // t, m, b
@@ -404,7 +471,7 @@ ${fontCss}
           baseY = h - M - totalTextHeight;
         }
 
-        lines.forEach((line, lineIndex) => {
+        processedLines.forEach((line, lineIndex) => { // Use processedLines
           const currentY = baseY + (lineIndex * lh);
           if (txt.outline && txt.outline.color && txt.outline.thickness > 0) {
             ctx.strokeText(line, targetX, currentY);
