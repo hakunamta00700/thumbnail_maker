@@ -1,23 +1,23 @@
 {
   "Thumbnail": {
     "Resolution": {
-      "type": "preset",
-      "value": "16:9"
+      "type": "fixedRatio",
+      "ratioValue": "16:9",
+      "height": 360
     },
     "Background": {
       "type": "image",
-      "imagePath": "https://file2.nocutnews.co.kr/newsroom/image/2020/11/10/20201110085849119181_0_608_733.jpg"
+      "imagePath": "https://cdn.pixabay.com/photo/2018/09/27/17/42/leaf-3707549_1280.jpg",
+      "imageOpacity": 1,
+      "imageBlur": 9
     },
     "Texts": [
       {
         "type": "title",
-        "content": "10초만에\n썸네일 만드는 법",
-        "position": {
-          "vertical": "top",
-          "horizontal": "left"
-        },
+        "content": "혈당 잡고, 식욕 억제까지?! 위고비 저렴이? 올리브 오일, 이렇게 먹어야 효과 10배!\"",
+        "gridPosition": "mc",
         "font": {
-          "name": "SBAggroB",
+          "name": "GongGothicMedium",
           "faces": [
             {
               "name": "SBAggroB",
@@ -28,34 +28,15 @@
           ]
         },
         "fontSize": 48,
-        "color": "#4ade80",
+        "color": "#ffd814",
+        "fontWeight": "bold",
+        "fontStyle": "normal",
+        "lineHeight": 1.1,
+        "wordWrap": true,
         "outline": {
-          "thickness": 7,
+          "thickness": 2,
           "color": "#000"
         },
-        "enabled": true
-      },
-      {
-        "type": "subtitle",
-        "content": "쉽고 빠르게 썸네일을 만드는 법\n= 퀵썸네일 쓰기",
-        "position": {
-          "vertical": "bottom",
-          "horizontal": "left"
-        },
-        "font": {
-          "name": "SBAggroB",
-          "faces": [
-            {
-              "name": "SBAggroB",
-              "url": "https://fastly.jsdelivr.net/gh/projectnoonnu/noonfonts_2108@1.1/SBAggroB.woff",
-              "weight": "normal",
-              "style": "normal"
-            }
-          ]
-        },
-        "fontSize": 24,
-        "color": "#ffffff",
-        "outline": null,
         "enabled": true
       }
     ]

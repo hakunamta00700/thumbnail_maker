@@ -1,0 +1,42 @@
+name: Generate Thumbnail
+
+on:
+  push:
+    paths:
+      - 'thumbnail.json'  # DSL 파일 변경 시 트리거
+  workflow_dispatch:  # 수동 실행 가능
+  repository_dispatch:
+    types: [generate-thumbnail]  # 웹훅으로 트리거 가능
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+
+    - name: Install dependencies
+      run: npm install
+
+    - name: Install Playwright browsers
+      run: npx playwright install --with-deps
+
+    - name: Generate thumbnail with Canvas
+      run: node generateThumbnail.js thumbnail.json thumbnail-canvas.png
+
+    - name: Generate thumbnail with Playwright
+      run: node genthumb.js thumbnail.json thumbnail-playwright.png
+
+    - name: Upload thumbnails as artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: generated-thumbnails
+        path: |
+          thumbnail-canvas.png
+          thumbnail-playwright.png
