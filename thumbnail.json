@@ -1,0 +1,64 @@
+{
+    "Thumbnail": {
+        "Resolution": {
+            "type": "preset",
+            "value": "16:9"
+        },
+        "Background": {
+            "type": "solid",
+            "color": "#a3e635"
+        },
+        "Texts": [{
+                "type": "title",
+                "content": "10초만에\n썸네일 만드는 법",
+                "gridPosition": "tl",
+                "font": {
+                    "name": "SBAggroB",
+                    "faces": [{
+                        "name": "SBAggroB",
+                        "url": "https://fastly.jsdelivr.net/gh/projectnoonnu/noonfonts_2108@1.1/SBAggroB.woff",
+                        "weight": "normal",
+                        "style": "normal"
+                    }]
+                },
+                "fontSize": 48,
+                "color": "#4ade80",
+                "fontWeight": "bold",
+                "fontStyle": "normal",
+                "lineHeight": 1.1,
+                "wordWrap": false,
+                "outline": {
+                    "thickness": 7,
+                    "color": "#000000"
+                },
+                "enabled": true
+            },
+            {
+                "type": "subtitle",
+                "content": "쉽고 빠르게 썸네일을 만드는 법\n= 퀵썸네일 쓰기",
+                "gridPosition": "bl",
+                "font": {
+                    "name": "SBAggroB",
+                    "faces": [{
+                        "name": "SBAggroB",
+                        "url": "https://fastly.jsdelivr.net/gh/projectnoonnu/noonfonts_2108@1.1/SBAggroB.woff",
+                        "weight": "normal",
+                        "style": "normal"
+                    }]
+                },
+                "fontSize": 24,
+                "color": "#ffffff",
+                "fontWeight": "normal",
+                "fontStyle": "normal",
+                "lineHeight": 1.1,
+                "wordWrap": false,
+                "outline": null,
+                "enabled": true
+            }
+        ]
+    },
+    "TemplateMeta": {
+        "name": "",
+        "shareable": false
+    }
+}

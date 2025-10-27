@@ -1,0 +1,7 @@
+Pillow>=10.0.0
+PySide6>=6.6.0
+fonttools>=4.47.0
+requests>=2.31.0
+woff2otf>=0.2.6
+pywoff2>=1.0.0
+
