@@ -16,6 +16,10 @@ from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
 from PySide6.QtCore import Qt, Signal, QThread
 from PySide6.QtGui import QColor, QFont
 from .renderer import ThumbnailRenderer
+try:
+    from fontTools.ttLib import TTFont
+except Exception:
+    TTFont = None
 
 
 class PreviewThread(QThread):
@@ -75,9 +79,17 @@ class ThumbnailGUI(QMainWindow):
         
         self.save_btn = QPushButton('저장')
         self.save_btn.clicked.connect(self.save_thumbnail)
+
+        self.show_dsl_btn = QPushButton('DSL 보기')
+        self.show_dsl_btn.clicked.connect(self.show_dsl_dialog)
+
+        self.save_dsl_btn = QPushButton('DSL 저장')
+        self.save_dsl_btn.clicked.connect(self.save_dsl)
         
         btn_layout.addWidget(self.preview_btn)
         btn_layout.addWidget(self.save_btn)
+        btn_layout.addWidget(self.show_dsl_btn)
+        btn_layout.addWidget(self.save_dsl_btn)
         
         layout.addWidget(self.preview_label)
         layout.addLayout(btn_layout)
@@ -223,6 +235,62 @@ class ThumbnailGUI(QMainWindow):
         layout.addWidget(QLabel('제목 텍스트:'))
         layout.addWidget(self.title_text)
         
+        # 폰트 설정 모드 (웹/로컬)
+        self.title_font_source = QComboBox()
+        self.title_font_source.addItems(['웹 폰트 URL', '로컬 폰트 파일'])
+        self.title_font_source.currentTextChanged.connect(self.update_preview)
+
+        layout.addWidget(QLabel('폰트 소스:'))
+        layout.addWidget(self.title_font_source)
+
+        # 폰트 설정 (이름/URL/굵기/스타일)
+        self.title_font_name = QLineEdit()
+        self.title_font_name.setPlaceholderText('예: SBAggroB')
+        self.title_font_name.textChanged.connect(self.update_preview)
+
+        self.title_font_url = QLineEdit()
+        self.title_font_url.setPlaceholderText('예: https://.../SBAggroB.woff')
+        self.title_font_url.textChanged.connect(self.update_preview)
+
+        # 로컬 파일 경로 + 선택 버튼
+        row_title_local = QHBoxLayout()
+        self.title_font_file = QLineEdit()
+        self.title_font_file.setPlaceholderText('예: C:/Windows/Fonts/malgun.ttf')
+        self.title_font_file.textChanged.connect(self.on_title_font_file_changed)
+        btn_title_font_browse = QPushButton('찾기')
+        def _pick_title_font():
+            path, _ = QFileDialog.getOpenFileName(self, '폰트 파일 선택', '', 'Fonts (*.ttf *.otf *.woff *.woff2)')
+            if path:
+                self.title_font_file.setText(path)
+                # 파일 선택 시에는 이름을 강제로 세팅
+                self.set_title_font_name_from_path(path)
+        btn_title_font_browse.clicked.connect(_pick_title_font)
+        row_title_local.addWidget(self.title_font_file)
+        row_title_local.addWidget(btn_title_font_browse)
+
+        self.title_font_weight = QComboBox()
+        self.title_font_weight.addItems(['normal', 'bold'])
+        self.title_font_weight.currentTextChanged.connect(self.update_preview)
+
+        self.title_font_style = QComboBox()
+        self.title_font_style.addItems(['normal', 'italic'])
+        self.title_font_style.currentTextChanged.connect(self.update_preview)
+
+        layout.addWidget(QLabel('폰트 이름:'))
+        layout.addWidget(self.title_font_name)
+        # URL/로컬 입력 영역
+        self.label_title_font_url = QLabel('폰트 URL (WOFF/WOFF2/TTF):')
+        layout.addWidget(self.label_title_font_url)
+        layout.addWidget(self.title_font_url)
+        self.label_title_font_file = QLabel('로컬 폰트 파일 경로:')
+        layout.addWidget(self.label_title_font_file)
+        layout.addLayout(row_title_local)
+        layout.addWidget(QLabel('폰트 굵기/스타일:'))
+        row_font = QHBoxLayout()
+        row_font.addWidget(self.title_font_weight)
+        row_font.addWidget(self.title_font_style)
+        layout.addLayout(row_font)
+
         # 제목 색상
         self.title_color_btn = QPushButton('색상 선택')
         self.title_color_btn.clicked.connect(self.select_title_color)
@@ -285,6 +353,61 @@ class ThumbnailGUI(QMainWindow):
         layout.addWidget(QLabel('부제목 텍스트:'))
         layout.addWidget(self.subtitle_text)
         
+        # 폰트 설정 모드 (웹/로컬)
+        self.subtitle_font_source = QComboBox()
+        self.subtitle_font_source.addItems(['웹 폰트 URL', '로컬 폰트 파일'])
+        self.subtitle_font_source.currentTextChanged.connect(self.update_preview)
+
+        layout.addWidget(QLabel('폰트 소스:'))
+        layout.addWidget(self.subtitle_font_source)
+
+        # 폰트 설정 (이름/URL/굵기/스타일)
+        self.subtitle_font_name = QLineEdit()
+        self.subtitle_font_name.setPlaceholderText('예: SBAggroB')
+        self.subtitle_font_name.textChanged.connect(self.update_preview)
+
+        self.subtitle_font_url = QLineEdit()
+        self.subtitle_font_url.setPlaceholderText('예: https://.../SBAggroB.woff')
+        self.subtitle_font_url.textChanged.connect(self.update_preview)
+
+        # 로컬 파일 경로 + 선택 버튼
+        row_sub_local = QHBoxLayout()
+        self.subtitle_font_file = QLineEdit()
+        self.subtitle_font_file.setPlaceholderText('예: C:/Windows/Fonts/malgun.ttf')
+        self.subtitle_font_file.textChanged.connect(self.on_subtitle_font_file_changed)
+        btn_sub_font_browse = QPushButton('찾기')
+        def _pick_sub_font():
+            path, _ = QFileDialog.getOpenFileName(self, '폰트 파일 선택', '', 'Fonts (*.ttf *.otf *.woff *.woff2)')
+            if path:
+                self.subtitle_font_file.setText(path)
+                # 파일 선택 시에는 이름을 강제로 세팅
+                self.set_subtitle_font_name_from_path(path)
+        btn_sub_font_browse.clicked.connect(_pick_sub_font)
+        row_sub_local.addWidget(self.subtitle_font_file)
+        row_sub_local.addWidget(btn_sub_font_browse)
+
+        self.subtitle_font_weight = QComboBox()
+        self.subtitle_font_weight.addItems(['normal', 'bold'])
+        self.subtitle_font_weight.currentTextChanged.connect(self.update_preview)
+
+        self.subtitle_font_style = QComboBox()
+        self.subtitle_font_style.addItems(['normal', 'italic'])
+        self.subtitle_font_style.currentTextChanged.connect(self.update_preview)
+
+        layout.addWidget(QLabel('폰트 이름:'))
+        layout.addWidget(self.subtitle_font_name)
+        self.label_subtitle_font_url = QLabel('폰트 URL (WOFF/WOFF2/TTF):')
+        layout.addWidget(self.label_subtitle_font_url)
+        layout.addWidget(self.subtitle_font_url)
+        self.label_subtitle_font_file = QLabel('로컬 폰트 파일 경로:')
+        layout.addWidget(self.label_subtitle_font_file)
+        layout.addLayout(row_sub_local)
+        layout.addWidget(QLabel('폰트 굵기/스타일:'))
+        row_sub_font = QHBoxLayout()
+        row_sub_font.addWidget(self.subtitle_font_weight)
+        row_sub_font.addWidget(self.subtitle_font_style)
+        layout.addLayout(row_sub_font)
+        
         # 부제목 색상
         self.subtitle_color_btn = QPushButton('색상 선택')
         self.subtitle_color_btn.clicked.connect(self.select_subtitle_color)
@@ -319,6 +442,16 @@ class ThumbnailGUI(QMainWindow):
         """기본값 초기화"""
         self.title_text.setPlainText('10초만에\n썸네일 만드는 법')
         self.subtitle_text.setPlainText('쉽고 빠르게 썸네일을 만드는 법\n= 퀵썸네일 쓰기')
+        # 기본 폰트 값 (노느늘 SBAggroB)
+        self.title_font_name.setText('SBAggroB')
+        self.title_font_url.setText('https://fastly.jsdelivr.net/gh/projectnoonnu/noonfonts_2108@1.1/SBAggroB.woff')
+        self.title_font_weight.setCurrentText('bold')
+        self.title_font_style.setCurrentText('normal')
+
+        self.subtitle_font_name.setText('SBAggroB')
+        self.subtitle_font_url.setText('https://fastly.jsdelivr.net/gh/projectnoonnu/noonfonts_2108@1.1/SBAggroB.woff')
+        self.subtitle_font_weight.setCurrentText('normal')
+        self.subtitle_font_style.setCurrentText('normal')
         self.update_preview()
     
     def on_resolution_mode_changed(self, mode):
@@ -410,24 +543,31 @@ class ThumbnailGUI(QMainWindow):
             }
         
         # 텍스트 설정
+        # 제목 폰트 소스 분기
+        title_use_local = self.title_font_source.currentText() == '로컬 폰트 파일'
+        title_face_url = self.title_font_file.text() if title_use_local and self.title_font_file.text() else (self.title_font_url.text() or 'https://fastly.jsdelivr.net/gh/projectnoonnu/noonfonts_2108@1.1/SBAggroB.woff')
+        # 부제목 폰트 소스 분기
+        subtitle_use_local = self.subtitle_font_source.currentText() == '로컬 폰트 파일'
+        subtitle_face_url = self.subtitle_font_file.text() if subtitle_use_local and self.subtitle_font_file.text() else (self.subtitle_font_url.text() or 'https://fastly.jsdelivr.net/gh/projectnoonnu/noonfonts_2108@1.1/SBAggroB.woff')
+
         texts = [
             {
                 'type': 'title',
                 'content': self.title_text.toPlainText(),
                 'gridPosition': self.title_position.currentText(),
                 'font': {
-                    'name': 'SBAggroB',
+                    'name': self.title_font_name.text() or 'SBAggroB',
                     'faces': [{
-                        'name': 'SBAggroB',
-                        'url': 'https://fastly.jsdelivr.net/gh/projectnoonnu/noonfonts_2108@1.1/SBAggroB.woff',
-                        'weight': 'normal',
-                        'style': 'normal'
+                        'name': self.title_font_name.text() or 'SBAggroB',
+                        'url': title_face_url,
+                        'weight': self.title_font_weight.currentText() or 'bold',
+                        'style': self.title_font_style.currentText() or 'normal'
                     }]
                 },
                 'fontSize': self.title_font_size.value(),
                 'color': self.title_color,
-                'fontWeight': 'bold',
-                'fontStyle': 'normal',
+                'fontWeight': self.title_font_weight.currentText() or 'bold',
+                'fontStyle': self.title_font_style.currentText() or 'normal',
                 'lineHeight': 1.1,
                 'wordWrap': False,
                 'outline': {
@@ -445,18 +585,18 @@ class ThumbnailGUI(QMainWindow):
                 'content': self.subtitle_text.toPlainText(),
                 'gridPosition': self.subtitle_position.currentText(),
                 'font': {
-                    'name': 'SBAggroB',
+                    'name': self.subtitle_font_name.text() or 'SBAggroB',
                     'faces': [{
-                        'name': 'SBAggroB',
-                        'url': 'https://fastly.jsdelivr.net/gh/projectnoonnu/noonfonts_2108@1.1/SBAggroB.woff',
-                        'weight': 'normal',
-                        'style': 'normal'
+                        'name': self.subtitle_font_name.text() or 'SBAggroB',
+                        'url': subtitle_face_url,
+                        'weight': self.subtitle_font_weight.currentText() or 'normal',
+                        'style': self.subtitle_font_style.currentText() or 'normal'
                     }]
                 },
                 'fontSize': self.subtitle_font_size.value(),
                 'color': self.subtitle_color,
-                'fontWeight': 'normal',
-                'fontStyle': 'normal',
+                'fontWeight': self.subtitle_font_weight.currentText() or 'normal',
+                'fontStyle': self.subtitle_font_style.currentText() or 'normal',
                 'lineHeight': 1.1,
                 'wordWrap': False,
                 'outline': None,
@@ -479,8 +619,76 @@ class ThumbnailGUI(QMainWindow):
     
     def update_preview(self):
         """미리보기 업데이트"""
+        # URL/로컬 입력 영역 가시성 토글
+        is_title_local = self.title_font_source.currentText() == '로컬 폰트 파일'
+        self.label_title_font_url.setVisible(not is_title_local)
+        self.title_font_url.setVisible(not is_title_local)
+        self.label_title_font_file.setVisible(is_title_local)
+        self.title_font_file.setVisible(is_title_local)
+        # 파일 찾기 버튼은 레이아웃에 포함되어 있어 개별 위젯 접근 불가하므로 입력창 표시로 충분
+
+        is_sub_local = self.subtitle_font_source.currentText() == '로컬 폰트 파일'
+        self.label_subtitle_font_url.setVisible(not is_sub_local)
+        self.subtitle_font_url.setVisible(not is_sub_local)
+        self.label_subtitle_font_file.setVisible(is_sub_local)
+        self.subtitle_font_file.setVisible(is_sub_local)
+
         dsl = self.generate_dsl()
         self.current_dsl = dsl
+
+    # ---------- 폰트 이름 자동 추출 ----------
+    @staticmethod
+    def _infer_font_name_from_file(file_path: str) -> str:
+        try:
+            ext = os.path.splitext(file_path)[1].lower()
+            if TTFont and ext in ('.ttf', '.otf') and os.path.exists(file_path):
+                tt = TTFont(file_path)
+                # Prefer full font name (nameID=4), fallback to font family (nameID=1)
+                name = None
+                for rec in tt['name'].names:
+                    if rec.nameID in (4, 1):
+                        try:
+                            val = rec.toUnicode()
+                        except Exception:
+                            val = rec.string.decode(rec.getEncoding(), errors='ignore')
+                        if val:
+                            name = val
+                            if rec.nameID == 4:
+                                break
+                if name:
+                    return name
+        except Exception:
+            pass
+        # Fallback: 파일명(확장자 제외)
+        return os.path.splitext(os.path.basename(file_path))[0]
+
+    def set_title_font_name_from_path(self, path: str) -> None:
+        inferred = self._infer_font_name_from_file(path)
+        if inferred:
+            self.title_font_name.setText(inferred)
+        self.update_preview()
+
+    def set_subtitle_font_name_from_path(self, path: str) -> None:
+        inferred = self._infer_font_name_from_file(path)
+        if inferred:
+            self.subtitle_font_name.setText(inferred)
+        self.update_preview()
+
+    def on_title_font_file_changed(self):
+        # 경로를 직접 입력한 경우: 이름 칸이 비어 있을 때만 채움
+        path = self.title_font_file.text().strip()
+        if path and not self.title_font_name.text().strip():
+            self.set_title_font_name_from_path(path)
+        else:
+            self.update_preview()
+
+    def on_subtitle_font_file_changed(self):
+        # 경로를 직접 입력한 경우: 이름 칸이 비어 있을 때만 채움
+        path = self.subtitle_font_file.text().strip()
+        if path and not self.subtitle_font_name.text().strip():
+            self.set_subtitle_font_name_from_path(path)
+        else:
+            self.update_preview()
     
     def generate_preview(self):
         """미리보기 생성"""
@@ -519,6 +727,49 @@ class ThumbnailGUI(QMainWindow):
         if file_path:
             ThumbnailRenderer.render_thumbnail(self.current_dsl, file_path)
             QMessageBox.information(self, '완료', f'저장 완료: {file_path}')
+
+    def show_dsl_dialog(self):
+        """현재 DSL을 JSON으로 출력하는 다이얼로그"""
+        if not hasattr(self, 'current_dsl'):
+            self.update_preview()
+        dsl = getattr(self, 'current_dsl', self.generate_dsl())
+        try:
+            text = json.dumps(dsl, ensure_ascii=False, indent=2)
+        except Exception:
+            text = str(dsl)
+
+        from PySide6.QtWidgets import QDialog, QVBoxLayout, QPlainTextEdit, QDialogButtonBox
+        dlg = QDialog(self)
+        dlg.setWindowTitle('현재 DSL 보기')
+        v = QVBoxLayout(dlg)
+        editor = QPlainTextEdit()
+        editor.setPlainText(text)
+        editor.setReadOnly(True)
+        v.addWidget(editor)
+        btns = QDialogButtonBox(QDialogButtonBox.Close)
+        btns.rejected.connect(dlg.reject)
+        btns.accepted.connect(dlg.accept)
+        v.addWidget(btns)
+        dlg.resize(700, 500)
+        dlg.exec()
+
+    def save_dsl(self):
+        """현재 DSL을 JSON 파일로 저장"""
+        if not hasattr(self, 'current_dsl'):
+            self.update_preview()
+        dsl = getattr(self, 'current_dsl', self.generate_dsl())
+
+        file_path, _ = QFileDialog.getSaveFileName(
+            self, 'DSL 저장', 'thumbnail.json', 'JSON (*.json)'
+        )
+        if not file_path:
+            return
+        try:
+            with open(file_path, 'w', encoding='utf-8') as f:
+                json.dump(dsl, f, ensure_ascii=False, indent=2)
+            QMessageBox.information(self, '완료', f'DSL 저장 완료: {file_path}')
+        except Exception as e:
+            QMessageBox.critical(self, '에러', f'DSL 저장 실패: {e}')
 
 
 def main():

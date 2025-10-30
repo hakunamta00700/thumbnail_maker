@@ -38,11 +38,21 @@ def main_cli():
     parser = argparse.ArgumentParser(description='썸네일 생성 (간편 CLI)')
     parser.add_argument('dsl', nargs='?', default='thumbnail.json', help='DSL 파일 경로')
     parser.add_argument('-o', '--output', default='thumbnail.png', help='출력 파일 경로')
-    parser.add_argument('--title', help='제목 덮어쓰기')
-    parser.add_argument('--subtitle', help='부제목 덮어쓰기')
+    parser.add_argument('--title', help='제목 덮어쓰기 (\\n 또는 실제 줄바꿈 지원)')
+    parser.add_argument('--subtitle', help='부제목 덮어쓰기 (\\n 또는 실제 줄바꿈 지원)')
     parser.add_argument('--bgImg', help='배경 이미지 경로')
     
     args = parser.parse_args()
+
+    def normalize_text(s: str) -> str:
+        """CLI에서 전달된 텍스트의 줄바꿈 시퀀스를 실제 줄바꿈으로 변환"""
+        if s is None:
+            return s
+        # 리터럴 \n, \r\n, \r 처리
+        # 먼저 \r\n -> \n 으로 통일, 이후 리터럴 역슬래시-n 치환
+        s = s.replace('\r\n', '\n').replace('\r', '\n')
+        s = s.replace('\\n', '\n')
+        return s
     
     # DSL 파일 확인
     if not os.path.exists(args.dsl):
@@ -67,9 +77,9 @@ def main_cli():
     if 'Texts' in dsl.get('Thumbnail', {}):
         for txt in dsl['Thumbnail']['Texts']:
             if args.title and txt.get('type') == 'title':
-                txt['content'] = args.title
+                txt['content'] = normalize_text(args.title)
             if args.subtitle and txt.get('type') == 'subtitle':
-                txt['content'] = args.subtitle
+                txt['content'] = normalize_text(args.subtitle)
     
     # 썸네일 생성
     ThumbnailRenderer.render_thumbnail(dsl, args.output)

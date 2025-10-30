@@ -10,6 +10,14 @@ import re
 import io
 from typing import Dict, List, Tuple, Optional
 import os
+import pathlib
+
+import requests
+from fontTools.ttLib import TTFont
+try:
+    import woff2  # from pywoff2
+except Exception:
+    woff2 = None
 
 
 def sanitize(name: str) -> str:
@@ -95,6 +103,128 @@ class ThumbnailRenderer:
                         font_faces.append(face)
         
         return font_faces
+
+    # ---------- 폰트 유틸 ----------
+    @staticmethod
+    def _fonts_dir() -> str:
+        d = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'fonts')
+        return os.path.normpath(d)
+
+    @staticmethod
+    def _font_safe_filename(face: Dict) -> str:
+        url_path = ''
+        try:
+            # url의 경로 확장자 추출 시 실패 대비
+            from urllib.parse import urlparse
+            url_path = urlparse(face.get('url', '')).path
+        except Exception:
+            pass
+        ext = os.path.splitext(url_path)[1].lower() or '.ttf'
+        name = sanitize(face.get('name', 'Font'))
+        weight = sanitize(str(face.get('weight', 'normal')))
+        style = sanitize(str(face.get('style', 'normal')))
+        return f"{name}-{weight}-{style}{ext}"
+
+    @staticmethod
+    def _font_ttf_filename(face: Dict) -> str:
+        name = sanitize(face.get('name', 'Font'))
+        weight = sanitize(str(face.get('weight', 'normal')))
+        style = sanitize(str(face.get('style', 'normal')))
+        return f"{name}-{weight}-{style}.ttf"
+
+    @staticmethod
+    def _download(url: str, dest_path: str) -> None:
+        os.makedirs(os.path.dirname(dest_path), exist_ok=True)
+        r = requests.get(url, timeout=30)
+        r.raise_for_status()
+        with open(dest_path, 'wb') as f:
+            f.write(r.content)
+
+    @staticmethod
+    def _convert_woff_to_ttf(woff_path: str, ttf_path: str) -> None:
+        # fontTools는 WOFF 로딩 후 TTF로 저장 가능
+        font = TTFont(woff_path)
+        font.flavor = None
+        font.save(ttf_path)
+
+    @staticmethod
+    def _convert_woff2_to_ttf(woff2_path: str, ttf_path: str) -> None:
+        if woff2 is None:
+            raise RuntimeError("pywoff2 모듈이 필요합니다 (requirements.txt 참고)")
+        # pywoff2는 파일 경로 기반 변환 지원
+        # 파일 내용을 직접 디코딩해서 저장하는 방식으로 처리
+        with open(woff2_path, 'rb') as f:
+            data = f.read()
+        decompressed = woff2.decompress(data)
+        with open(ttf_path, 'wb') as f:
+            f.write(decompressed)
+
+    @staticmethod
+    def ensure_fonts(texts: List[Dict]) -> None:
+        """DSL 내 faces를 다운로드/변환하여 Pillow가 읽을 수 있는 TTF로 보장"""
+        faces = ThumbnailRenderer.parse_font_faces(texts)
+        if not faces:
+            return
+        fonts_dir = ThumbnailRenderer._fonts_dir()
+        os.makedirs(fonts_dir, exist_ok=True)
+
+        for face in faces:
+            url = face.get('url')
+            if not url:
+                continue
+            original_name = ThumbnailRenderer._font_safe_filename(face)
+            original_path = os.path.join(fonts_dir, original_name)
+            ttf_name = ThumbnailRenderer._font_ttf_filename(face)
+            ttf_path = os.path.join(fonts_dir, ttf_name)
+
+            # 이미 TTF가 있으면 스킵
+            if os.path.exists(ttf_path):
+                continue
+
+            # 로컬 파일 또는 원격 URL 구분
+            from urllib.parse import urlparse
+            parsed = urlparse(url)
+            is_local = False
+            local_path = ''
+            if parsed.scheme == 'file':
+                is_local = True
+                local_path = os.path.abspath(parsed.path)
+            elif os.path.isabs(url) and os.path.exists(url):
+                is_local = True
+                local_path = os.path.abspath(url)
+
+            if is_local:
+                source_path = local_path
+                ext = pathlib.Path(source_path).suffix.lower()
+            else:
+                # 원격: 원본 없으면 다운로드
+                ext = pathlib.Path(original_name).suffix.lower()
+                if not os.path.exists(original_path):
+                    try:
+                        ThumbnailRenderer._download(url, original_path)
+                    except Exception as e:
+                        print(f"폰트 다운로드 실패: {url} -> {e}")
+                        continue
+                source_path = original_path
+
+            # 확장자별 변환/복사
+            try:
+                if ext == '.ttf' or ext == '.otf':
+                    if source_path != ttf_path:
+                        with open(source_path, 'rb') as rf, open(ttf_path, 'wb') as wf:
+                            wf.write(rf.read())
+                elif ext == '.woff2':
+                    ThumbnailRenderer._convert_woff2_to_ttf(source_path, ttf_path)
+                elif ext == '.woff':
+                    ThumbnailRenderer._convert_woff_to_ttf(source_path, ttf_path)
+                else:
+                    # 미지원 확장자는 시도만 해보고 실패시 스킵
+                    try:
+                        ThumbnailRenderer._convert_woff_to_ttf(source_path, ttf_path)
+                    except Exception:
+                        pass
+            except Exception as e:
+                print(f"폰트 변환 실패: {source_path} -> {ttf_path}, {e}")
     
     @staticmethod
     def split_lines(text: str) -> List[str]:
@@ -278,20 +408,58 @@ class ThumbnailRenderer:
                 if outline and (not outline.get('thickness') or outline.get('thickness') < 0):
                     outline['thickness'] = ThumbnailRenderer.DEFAULT_OUTLINE_THICKNESS
                 
-                # 폰트 경로 찾기
-                font_path = f"fonts/{sanitize(fontFamily)}-{fontWeight}-{fontStyle}.ttf"
-                if not os.path.exists(font_path):
-                    font_path = f"fonts/{sanitize(fontFamily)}-{fontWeight}-{fontStyle}.woff"
-                if not os.path.exists(font_path):
-                    font_path = None
+                # faces 기반 폰트 확보 (필요 시 다운로드/변환)
+                try:
+                    ThumbnailRenderer.ensure_fonts(thumbnail_config.get('Texts', []))
+                except Exception as e:
+                    print(f"폰트 확보 과정 경고: {e}")
+
+                # 확보된 TTF 경로 우선 시도
+                fonts_dir = ThumbnailRenderer._fonts_dir()
+                ttf_candidate = os.path.join(
+                    fonts_dir,
+                    f"{sanitize(fontFamily)}-{sanitize(str(fontWeight))}-{sanitize(str(fontStyle))}.ttf",
+                )
+
+                # 로컬 정적 폰트 폴더(프로젝트 루트/fonts)도 탐색
+                legacy_ttf = os.path.join('fonts', f"{sanitize(fontFamily)}-{fontWeight}-{fontStyle}.ttf")
+                legacy_woff = os.path.join('fonts', f"{sanitize(fontFamily)}-{fontWeight}-{fontStyle}.woff")
+                font_path = None
+                if os.path.exists(ttf_candidate):
+                    font_path = ttf_candidate
+                elif os.path.exists(legacy_ttf):
+                    font_path = legacy_ttf
+                elif os.path.exists(legacy_woff):
+                    # 가능한 경우 변환 시도 후 사용
+                    try:
+                        os.makedirs(fonts_dir, exist_ok=True)
+                        conv_target = os.path.join(fonts_dir, os.path.basename(legacy_ttf))
+                        if os.path.splitext(legacy_woff)[1].lower() == '.woff':
+                            ThumbnailRenderer._convert_woff_to_ttf(legacy_woff, conv_target)
+                        font_path = conv_target if os.path.exists(conv_target) else None
+                    except Exception:
+                        font_path = None
                 
-                # 폰트 로드
+                # 폰트 로드 + 한글 폴백
+                font = None
                 if font_path and os.path.exists(font_path):
                     font = ThumbnailRenderer.load_font(font_path, fontSize)
-                else:
+                if font is None:
+                    # Windows 한글 폴백 (맑은 고딕)
+                    for fallback in [
+                        os.path.join(os.environ.get('WINDIR', 'C:\\Windows'), 'Fonts', 'malgun.ttf'),
+                        os.path.join(os.environ.get('WINDIR', 'C:\\Windows'), 'Fonts', 'malgunsl.ttf'),
+                    ]:
+                        try:
+                            if os.path.exists(fallback):
+                                font = ImageFont.truetype(fallback, fontSize)
+                                break
+                        except Exception:
+                            pass
+                if font is None:
                     try:
                         font = ImageFont.truetype("arial.ttf", fontSize)
-                    except:
+                    except Exception:
                         font = ImageFont.load_default()
                 
                 # 줄 분리
