@@ -18,6 +18,11 @@ try:
     import woff2  # from pywoff2
 except Exception:
     woff2 = None
+try:
+    # Optional: WOFF -> OTF 변환기
+    from woff2otf import woff2otf
+except Exception:
+    woff2otf = None
 
 
 def sanitize(name: str) -> str:
@@ -142,7 +147,16 @@ class ThumbnailRenderer:
 
     @staticmethod
     def _convert_woff_to_ttf(woff_path: str, ttf_path: str) -> None:
-        # fontTools는 WOFF 로딩 후 TTF로 저장 가능
+        # 우선 woff -> otf 변환이 가능하면 사용
+        if woff2otf is not None:
+            otf_path = os.path.splitext(ttf_path)[0] + '.otf'
+            with open(woff_path, 'rb') as rf:
+                woff_bytes = rf.read()
+            otf_bytes = woff2otf(woff_bytes)
+            with open(otf_path, 'wb') as wf:
+                wf.write(otf_bytes)
+            return
+        # 폴백: fontTools를 사용한 시도 (환경에 따라 실패할 수 있음)
         font = TTFont(woff_path)
         font.flavor = None
         font.save(ttf_path)
@@ -176,9 +190,10 @@ class ThumbnailRenderer:
             original_path = os.path.join(fonts_dir, original_name)
             ttf_name = ThumbnailRenderer._font_ttf_filename(face)
             ttf_path = os.path.join(fonts_dir, ttf_name)
+            otf_path = os.path.splitext(ttf_path)[0] + '.otf'
 
             # 이미 TTF가 있으면 스킵
-            if os.path.exists(ttf_path):
+            if os.path.exists(ttf_path) or os.path.exists(otf_path):
                 continue
 
             # 로컬 파일 또는 원격 URL 구분
@@ -211,7 +226,9 @@ class ThumbnailRenderer:
             try:
                 if ext == '.ttf' or ext == '.otf':
                     if source_path != ttf_path:
-                        with open(source_path, 'rb') as rf, open(ttf_path, 'wb') as wf:
+                        # 확장자 유지 복사
+                        target = ttf_path if ext == '.ttf' else otf_path
+                        with open(source_path, 'rb') as rf, open(target, 'wb') as wf:
                             wf.write(rf.read())
                 elif ext == '.woff2':
                     ThumbnailRenderer._convert_woff2_to_ttf(source_path, ttf_path)
@@ -416,10 +433,9 @@ class ThumbnailRenderer:
 
                 # 확보된 TTF 경로 우선 시도
                 fonts_dir = ThumbnailRenderer._fonts_dir()
-                ttf_candidate = os.path.join(
-                    fonts_dir,
-                    f"{sanitize(fontFamily)}-{sanitize(str(fontWeight))}-{sanitize(str(fontStyle))}.ttf",
-                )
+                base_name = f"{sanitize(fontFamily)}-{sanitize(str(fontWeight))}-{sanitize(str(fontStyle))}"
+                ttf_candidate = os.path.join(fonts_dir, base_name + '.ttf')
+                otf_candidate = os.path.join(fonts_dir, base_name + '.otf')
 
                 # 로컬 정적 폰트 폴더(프로젝트 루트/fonts)도 탐색
                 legacy_ttf = os.path.join('fonts', f"{sanitize(fontFamily)}-{fontWeight}-{fontStyle}.ttf")
@@ -427,16 +443,22 @@ class ThumbnailRenderer:
                 font_path = None
                 if os.path.exists(ttf_candidate):
                     font_path = ttf_candidate
+                elif os.path.exists(otf_candidate):
+                    font_path = otf_candidate
                 elif os.path.exists(legacy_ttf):
                     font_path = legacy_ttf
                 elif os.path.exists(legacy_woff):
                     # 가능한 경우 변환 시도 후 사용
                     try:
                         os.makedirs(fonts_dir, exist_ok=True)
-                        conv_target = os.path.join(fonts_dir, os.path.basename(legacy_ttf))
+                        conv_target_ttf = os.path.join(fonts_dir, base_name + '.ttf')
+                        conv_target_otf = os.path.join(fonts_dir, base_name + '.otf')
                         if os.path.splitext(legacy_woff)[1].lower() == '.woff':
-                            ThumbnailRenderer._convert_woff_to_ttf(legacy_woff, conv_target)
-                        font_path = conv_target if os.path.exists(conv_target) else None
+                            ThumbnailRenderer._convert_woff_to_ttf(legacy_woff, conv_target_ttf)
+                        font_path = (
+                            conv_target_ttf if os.path.exists(conv_target_ttf)
+                            else (conv_target_otf if os.path.exists(conv_target_otf) else None)
+                        )
                     except Exception:
                         font_path = None
                 

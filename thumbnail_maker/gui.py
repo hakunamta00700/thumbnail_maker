@@ -15,11 +15,14 @@ from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                                QFileDialog, QMessageBox, QGridLayout)
 from PySide6.QtCore import Qt, Signal, QThread
 from PySide6.QtGui import QColor, QFont
-from .renderer import ThumbnailRenderer
+from .renderer import ThumbnailRenderer, sanitize
 try:
     from fontTools.ttLib import TTFont
 except Exception:
     TTFont = None
+import tempfile
+import zipfile
+import shutil
 
 
 class PreviewThread(QThread):
@@ -29,11 +32,16 @@ class PreviewThread(QThread):
     def __init__(self, dsl):
         super().__init__()
         self.dsl = dsl
+        self.error_message = None
     
     def run(self):
         preview_path = 'preview_temp.png'
-        ThumbnailRenderer.render_thumbnail(self.dsl, preview_path)
-        self.preview_ready.emit(preview_path)
+        try:
+            ThumbnailRenderer.render_thumbnail(self.dsl, preview_path)
+            self.preview_ready.emit(preview_path)
+        except Exception as e:
+            self.error_message = str(e)
+            self.preview_ready.emit('')
 
 
 class ThumbnailGUI(QMainWindow):
@@ -85,11 +93,15 @@ class ThumbnailGUI(QMainWindow):
 
         self.save_dsl_btn = QPushButton('DSL 저장')
         self.save_dsl_btn.clicked.connect(self.save_dsl)
+
+        self.save_thl_btn = QPushButton('패키지 저장(.thl)')
+        self.save_thl_btn.clicked.connect(self.save_thl_package)
         
         btn_layout.addWidget(self.preview_btn)
         btn_layout.addWidget(self.save_btn)
         btn_layout.addWidget(self.show_dsl_btn)
         btn_layout.addWidget(self.save_dsl_btn)
+        btn_layout.addWidget(self.save_thl_btn)
         
         layout.addWidget(self.preview_label)
         layout.addLayout(btn_layout)
@@ -706,10 +718,14 @@ class ThumbnailGUI(QMainWindow):
     def on_preview_ready(self, file_path):
         """미리보기 준비됨"""
         from PySide6.QtGui import QPixmap
-        pixmap = QPixmap(file_path)
-        self.preview_label.setPixmap(pixmap.scaled(
-            480, 270, Qt.KeepAspectRatio, Qt.SmoothTransformation
-        ))
+        if file_path and os.path.exists(file_path):
+            pixmap = QPixmap(file_path)
+            self.preview_label.setPixmap(pixmap.scaled(
+                480, 270, Qt.KeepAspectRatio, Qt.SmoothTransformation
+            ))
+        else:
+            msg = self.preview_thread.error_message or '미리보기 생성 중 오류가 발생했습니다.'
+            QMessageBox.critical(self, '에러', msg)
         
         self.preview_btn.setEnabled(True)
         self.preview_btn.setText('미리보기 생성')
@@ -725,8 +741,11 @@ class ThumbnailGUI(QMainWindow):
         )
         
         if file_path:
-            ThumbnailRenderer.render_thumbnail(self.current_dsl, file_path)
-            QMessageBox.information(self, '완료', f'저장 완료: {file_path}')
+            try:
+                ThumbnailRenderer.render_thumbnail(self.current_dsl, file_path)
+                QMessageBox.information(self, '완료', f'저장 완료: {file_path}')
+            except Exception as e:
+                QMessageBox.critical(self, '에러', f'저장 실패: {e}')
 
     def show_dsl_dialog(self):
         """현재 DSL을 JSON으로 출력하는 다이얼로그"""
@@ -770,6 +789,64 @@ class ThumbnailGUI(QMainWindow):
             QMessageBox.information(self, '완료', f'DSL 저장 완료: {file_path}')
         except Exception as e:
             QMessageBox.critical(self, '에러', f'DSL 저장 실패: {e}')
+
+    def save_thl_package(self):
+        """현재 DSL과 사용 폰트를 묶어 .thl 패키지로 저장"""
+        if not hasattr(self, 'current_dsl'):
+            self.update_preview()
+        dsl = getattr(self, 'current_dsl', self.generate_dsl())
+
+        # 저장 경로 선택
+        file_path, _ = QFileDialog.getSaveFileName(
+            self, '패키지 저장', 'thumbnail.thl', 'Thumbnail Package (*.thl)'
+        )
+        if not file_path:
+            return
+        try:
+            # 스테이징 디렉토리 구성
+            staging = tempfile.mkdtemp(prefix='thl_pkg_')
+            fonts_dir = os.path.join(staging, 'fonts')
+            os.makedirs(fonts_dir, exist_ok=True)
+
+            # 폰트 확보 및 복사
+            texts = dsl.get('Thumbnail', {}).get('Texts', [])
+            try:
+                # 프로젝트/fonts에 TTF 생성/보장
+                ThumbnailRenderer.ensure_fonts(texts)
+            except Exception as e:
+                print(f"폰트 확보 경고: {e}")
+
+            # faces를 순회하여 예상 파일명으로 복사
+            faces = ThumbnailRenderer.parse_font_faces(texts)
+            copied = 0
+            for face in faces:
+                ttf_name = f"{sanitize(face.get('name','Font'))}-{sanitize(str(face.get('weight','normal')))}-{sanitize(str(face.get('style','normal')))}.ttf"
+                src_path = os.path.join(ThumbnailRenderer._fonts_dir(), ttf_name)
+                if os.path.exists(src_path):
+                    shutil.copy2(src_path, os.path.join(fonts_dir, ttf_name))
+                    copied += 1
+
+            # thumbnail.json 저장 (원본 DSL 그대로)
+            with open(os.path.join(staging, 'thumbnail.json'), 'w', encoding='utf-8') as f:
+                json.dump(dsl, f, ensure_ascii=False, indent=2)
+
+            # zip -> .thl
+            with zipfile.ZipFile(file_path, 'w', compression=zipfile.ZIP_DEFLATED) as zf:
+                # 루트에 thumbnail.json
+                zf.write(os.path.join(staging, 'thumbnail.json'), arcname='thumbnail.json')
+                # fonts 폴더
+                if os.path.isdir(fonts_dir):
+                    for name in os.listdir(fonts_dir):
+                        zf.write(os.path.join(fonts_dir, name), arcname=os.path.join('fonts', name))
+
+            QMessageBox.information(self, '완료', f'패키지 저장 완료: {file_path}')
+        except Exception as e:
+            QMessageBox.critical(self, '에러', f'패키지 저장 실패: {e}')
+        finally:
+            try:
+                shutil.rmtree(staging, ignore_errors=True)
+            except Exception:
+                pass
 
 
 def main():
