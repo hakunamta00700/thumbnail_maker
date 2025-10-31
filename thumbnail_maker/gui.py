@@ -332,6 +332,11 @@ class ThumbnailGUI(QMainWindow):
         layout.addWidget(self.title_outline_check)
         layout.addWidget(QLabel('외곽선 두께:'))
         layout.addWidget(self.title_outline_thickness)
+
+        # 워드 랩
+        self.title_word_wrap = QCheckBox('단어 단위 줄바꿈')
+        self.title_word_wrap.stateChanged.connect(self.update_preview)
+        layout.addWidget(self.title_word_wrap)
         
         # 위치 (9 그리드)
         self.title_position = QComboBox()
@@ -442,9 +447,14 @@ class ThumbnailGUI(QMainWindow):
         self.subtitle_position.addItems(['tl', 'tc', 'tr', 'ml', 'mc', 'mr', 'bl', 'bc', 'br'])
         self.subtitle_position.setCurrentText('bl')
         self.subtitle_position.currentTextChanged.connect(self.update_preview)
+
+        # 워드 랩
+        self.subtitle_word_wrap = QCheckBox('단어 단위 줄바꿈')
+        self.subtitle_word_wrap.stateChanged.connect(self.update_preview)
         
         layout.addWidget(QLabel('위치:'))
         layout.addWidget(self.subtitle_position)
+        layout.addWidget(self.subtitle_word_wrap)
         
         layout.addStretch()
         widget.setLayout(layout)
@@ -581,7 +591,7 @@ class ThumbnailGUI(QMainWindow):
                 'fontWeight': self.title_font_weight.currentText() or 'bold',
                 'fontStyle': self.title_font_style.currentText() or 'normal',
                 'lineHeight': 1.1,
-                'wordWrap': False,
+                'wordWrap': self.title_word_wrap.isChecked(),
                 'outline': {
                     'thickness': self.title_outline_thickness.value(),
                     'color': '#000000'
@@ -610,7 +620,7 @@ class ThumbnailGUI(QMainWindow):
                 'fontWeight': self.subtitle_font_weight.currentText() or 'normal',
                 'fontStyle': self.subtitle_font_style.currentText() or 'normal',
                 'lineHeight': 1.1,
-                'wordWrap': False,
+                'wordWrap': self.subtitle_word_wrap.isChecked(),
                 'outline': None,
                 'enabled': True
             })

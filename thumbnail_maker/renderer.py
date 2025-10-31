@@ -247,6 +247,41 @@ class ThumbnailRenderer:
     def split_lines(text: str) -> List[str]:
         """텍스트를 줄 단위로 분리"""
         return text.split('\n')
+
+    @staticmethod
+    def wrap_line_by_words(
+        draw: ImageDraw.ImageDraw,
+        text: str,
+        font: ImageFont.FreeTypeFont,
+        max_width: int
+    ) -> List[str]:
+        """단어 단위로 한 줄을 주어진 최대 폭에 맞게 개행한다.
+
+        - 공백으로 단어를 나눈 뒤, 누적 폭이 넘어가면 이전까지를 한 줄로 확정한다.
+        - 단어 하나가 max_width보다 커도 단어 단위 래핑 원칙상 강제 분할은 하지 않는다.
+        - 입력이 빈 문자열이면 ['']을 반환한다.
+        """
+        if text is None or text == '':
+            return ['']
+
+        words = text.split(' ')
+        lines: List[str] = []
+        current = ''
+
+        for word in words:
+            candidate = word if current == '' else current + ' ' + word
+            bbox = draw.textbbox((0, 0), candidate, font=font)
+            candidate_width = bbox[2] - bbox[0]
+            if candidate_width > max_width and current != '':
+                lines.append(current)
+                current = word
+            else:
+                current = candidate
+
+        if current != '':
+            lines.append(current)
+
+        return lines if lines else ['']
     
     @staticmethod
     def load_font(font_path: str, size: int, weight: str = 'normal', style: str = 'normal') -> ImageFont.FreeTypeFont:
@@ -484,8 +519,26 @@ class ThumbnailRenderer:
                     except Exception:
                         font = ImageFont.load_default()
                 
-                # 줄 분리
-                lines = ThumbnailRenderer.split_lines(content)
+                # 줄 분리 및 단어 단위 줄바꿈 처리
+                initial_lines = ThumbnailRenderer.split_lines(content)
+                effective_max_width = width - 2 * ThumbnailRenderer.MARGIN
+
+                if wordWrap:
+                    processed_lines: List[str] = []
+                    for init_line in initial_lines:
+                        if init_line == '':
+                            processed_lines.append('')
+                        else:
+                            wrapped = ThumbnailRenderer.wrap_line_by_words(
+                                draw=draw,
+                                text=init_line,
+                                font=font,
+                                max_width=effective_max_width,
+                            )
+                            processed_lines.extend(wrapped)
+                    lines = processed_lines
+                else:
+                    lines = initial_lines
                 
                 # 라인 높이 계산
                 lh = int(fontSize * lineHeight)
