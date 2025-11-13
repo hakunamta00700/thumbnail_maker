@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-thumbnail_maker: 단일 엔트리포인트 (subcommands: gui, generate-thumbnail, genthumb)
+thumbnail_maker: 단일 엔트리포인트 (subcommands: gui, generate-thumbnail, genthumb, upload)
 """
 
 import sys
 import argparse
+import os
 
 from .gui import main as gui_main
 from .cli import main as generate_main, main_cli as genthumb_main
+from .upload import upload_file
 
 
 def main() -> None:
@@ -22,6 +24,7 @@ def main() -> None:
     gen = subparsers.add_parser('generate-thumbnail', help='DSL로 썸네일 생성')
     gen.add_argument('dsl', nargs='?', default='thumbnail.json', help='DSL 파일 경로')
     gen.add_argument('-o', '--output', default='thumbnail.png', help='출력 파일 경로')
+    gen.add_argument('--upload', action='store_true', help='생성 후 자동 업로드')
 
     # genthumb (간편 CLI: 제목/부제목 덮어쓰기 등)
     gt = subparsers.add_parser('genthumb', help='간편 CLI로 썸네일 생성')
@@ -30,6 +33,10 @@ def main() -> None:
     gt.add_argument('--title', help='제목 덮어쓰기 (\\n 또는 실제 줄바꿈 지원)')
     gt.add_argument('--subtitle', help='부제목 덮어쓰기 (\\n 또는 실제 줄바꿈 지원)')
     gt.add_argument('--bgImg', help='배경 이미지 경로')
+    
+    # upload
+    upload_parser = subparsers.add_parser('upload', help='이미지 파일 업로드')
+    upload_parser.add_argument('file', help='업로드할 파일 경로')
 
     args, unknown = parser.parse_known_args()
 
@@ -45,6 +52,24 @@ def main() -> None:
         # 대신 renderer를 직접 호출하지 않고, cli.main의 구현을 차용하기 위해 임시 argv 구성
         sys.argv = ['generate-thumbnail', args.dsl, '-o', args.output]
         generate_main()
+        
+        # 업로드 옵션이 있으면 업로드 수행
+        if args.upload:
+            output_path = args.output
+            if not os.path.isabs(output_path):
+                output_path = os.path.abspath(output_path)
+            
+            if not os.path.exists(output_path):
+                print(f"오류: 출력 파일을 찾을 수 없습니다: {output_path}")
+                sys.exit(1)
+            
+            print(f"업로드 중: {output_path}")
+            url = upload_file(output_path)
+            if url:
+                print(f"✅ 업로드 완료: {url}")
+            else:
+                print("❌ 업로드 실패")
+                sys.exit(1)
         return
 
     if args.command == 'genthumb':
@@ -62,6 +87,21 @@ def main() -> None:
             new_argv += ['--bgImg', args.bgImg]
         sys.argv = new_argv
         genthumb_main()
+        return
+    
+    if args.command == 'upload':
+        file_path = args.file
+        if not os.path.exists(file_path):
+            print(f"오류: 파일을 찾을 수 없습니다: {file_path}")
+            sys.exit(1)
+        
+        print(f"업로드 중: {file_path}")
+        url = upload_file(file_path)
+        if url:
+            print(f"✅ 업로드 완료: {url}")
+        else:
+            print("❌ 업로드 실패")
+            sys.exit(1)
         return
 
 
