@@ -30,7 +30,7 @@ def main() -> None:
     gen.add_argument('-rm', '--resolution-mode', choices=['preset', 'fixedRatio', 'custom'], help='해상도 모드')
     gen.add_argument('-ar', '--aspect-ratio', choices=['16:9', '9:16', '4:3', '1:1'], help='종횡비')
     gen.add_argument('-w', '--width', type=int, help='너비')
-    gen.add_argument('-h', '--height', type=int, help='높이')
+    gen.add_argument('--height', type=int, help='높이')
     
     # 배경 관련
     gen.add_argument('-bt', '--background-type', choices=['solid', 'gradient', 'image'], help='배경 타입')
