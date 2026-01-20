@@ -1,17 +1,25 @@
 [project]
 name = "thumbnail-maker"
-version = "0.1.3"
+version = "0.1.5"
 description = "썸네일 생성 도구 - Pillow와 PySide6 기반"
 readme = "README.md"
 requires-python = ">=3.10"
-dependencies = [ "pillow>=10.0.0", "pyside6>=6.10.0", "fonttools>=4.47.0", "requests>=2.31.0", "uv-easy>=0.2.5",]
+dependencies = [
+    "pillow>=10.0.0",
+    "pyside6>=6.10.0",
+    "fonttools>=4.47.0",
+    "requests>=2.31.0",
+    "uv-easy>=0.2.5",
+    "httpx>=0.28.1",
+    "loguru>=0.7.3",
+]
 
 [build-system]
-requires = [ "hatchling",]
+requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project.scripts]
 thumbnail_maker = "thumbnail_maker.__main__:main"
 
 [tool.hatchling.build.targets.wheel]
-packages = [ "thumbnail_maker",]
+packages = ["thumbnail_maker"]
